@@ -24,4 +24,15 @@ class SecurityHeadersTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
+
+    public function test_forwarded_https_scheme_is_used_for_asset_urls(): void
+    {
+        $response = $this->withServerVariables([
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+            'REMOTE_ADDR' => '10.0.0.10',
+        ])->get('/login');
+
+        $response->assertOk();
+        $response->assertSee('https://localhost:8000/build/assets/', false);
+    }
 }
