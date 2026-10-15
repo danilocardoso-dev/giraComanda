@@ -16,6 +16,7 @@ class AuthenticatedSessionControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Entrar no GiraComanda');
+        $response->assertSee('favicon.svg', false);
     }
 
     public function test_active_user_can_authenticate(): void
