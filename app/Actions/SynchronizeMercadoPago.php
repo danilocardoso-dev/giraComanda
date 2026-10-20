@@ -17,35 +17,35 @@ class SynchronizeMercadoPago
 {
     public function __construct(private MercadoPagoClient $client, private SettleSubscriptionInvoice $settle) {}
 
-    public function checkout(SubscriptionCheckout $checkout): void
+    /** @return array{level: string, message: string} */
+    public function checkout(SubscriptionCheckout $checkout): array
     {
+        $checkout->update(['last_attempted_at' => now()]);
+        if ($checkout->status === 'rejected' && $checkout->remote_id === null) {
+            throw new RuntimeException($checkout->failure_message ?? 'A criação foi recusada. Nenhuma assinatura ou pagamento foi confirmado.');
+        }
+        if ($checkout->status === 'cancelled' && $checkout->remote_id === null) {
+            return ['level' => 'info', 'message' => 'Esta tentativa foi encerrada apenas no GiraComanda. Não houve confirmação de criação ou cancelamento de cobrança no Mercado Pago.'];
+        }
         if ($checkout->remote_id === null) {
-            if ($checkout->kind === 'card') {
-                $found = $this->client->request($checkout->environment, 'GET', '/preapproval/search', ['external_reference' => $checkout->uuid]);
-                $data = collect($found['results'] ?? [])->first(fn (array $row): bool => ($row['external_reference'] ?? null) === $checkout->uuid);
-                if ($data !== null) {
-                    $this->recurrence($checkout->environment, (string) $data['id']);
-                }
-            } else {
-                $found = $this->client->request($checkout->environment, 'GET', '/v1/payments/search', ['external_reference' => $checkout->uuid]);
-                $data = collect($found['results'] ?? [])->first(fn (array $row): bool => ($row['external_reference'] ?? null) === $checkout->uuid);
-                if ($data !== null) {
-                    $checkout->update(['remote_id' => (string) $data['id']]);
-                    $this->payment($checkout->environment, (string) $data['id']);
-                }
+            if (! $this->recover($checkout)) {
+                throw new RuntimeException('Nenhuma '.($checkout->kind === 'card' ? 'assinatura' : 'cobrança Pix').' foi localizada no Mercado Pago para esta tentativa. A criação e o pagamento não foram confirmados.');
             }
 
-            return;
+            return $this->checkout($checkout->refresh());
         }
         if ($checkout->kind === 'pix') {
-            $this->payment($checkout->environment, $checkout->remote_id);
+            $this->payment($checkout->environment, $checkout->remote_id, $checkout);
         } else {
-            $this->recurrence($checkout->environment, $checkout->remote_id);
+            $this->recurrence($checkout->environment, $checkout->remote_id, $checkout);
             $deadline = microtime(true) + 35;
             $offset = (int) $checkout->reconciliation_offset;
             $page = $this->client->request($checkout->environment, 'GET', '/authorized_payments/search', [
                 'preapproval_id' => $checkout->remote_id, 'limit' => 20, 'offset' => $offset,
             ]);
+            if (! isset($page['results']) || ! is_array($page['results'])) {
+                throw new RuntimeException('O Mercado Pago retornou uma consulta de pagamentos incompleta. Nenhum resultado de pagamento pôde ser confirmado.');
+            }
             foreach ($page['results'] ?? [] as $item) {
                 $known = $checkout->payments()->where('remote_id', (string) data_get($item, 'payment.id'))->first();
                 if ($known === null || $known->status !== data_get($item, 'payment.status')
@@ -63,18 +63,39 @@ class SynchronizeMercadoPago
             }
         }
         $checkout->update(['last_synced_at' => now()]);
+
+        return $this->feedback($checkout->refresh());
     }
 
-    public function recurrence(string $environment, string $id): void
+    public function recover(SubscriptionCheckout $checkout): bool
+    {
+        $path = $checkout->kind === 'card' ? '/preapproval/search' : '/v1/payments/search';
+        $found = $this->client->request($checkout->environment, 'GET', $path, ['external_reference' => $checkout->uuid]);
+        $data = $this->findCheckout($found, $checkout);
+        if ($data === null) {
+            return false;
+        }
+        if ($checkout->kind === 'card') {
+            $this->recurrence($checkout->environment, (string) $data['id'], $checkout);
+        } else {
+            $checkout->update(['remote_id' => (string) $data['id']]);
+            $this->payment($checkout->environment, (string) $data['id'], $checkout);
+        }
+
+        return true;
+    }
+
+    public function recurrence(string $environment, string $id, ?SubscriptionCheckout $expected = null): void
     {
         $data = $this->client->request($environment, 'GET', '/preapproval/'.rawurlencode($id));
-        $checkout = SubscriptionCheckout::query()->where('environment', $environment)->where('kind', 'card')
+        $checkout = $expected ?? SubscriptionCheckout::query()->where('environment', $environment)->where('kind', 'card')
             ->where('uuid', $data['external_reference'] ?? '')->first();
 
         if ($checkout === null) {
             return;
         }
-        if (($checkout->remote_id !== null && $checkout->remote_id !== $id) || (string) ($data['id'] ?? '') !== $id) {
+        if (($checkout->remote_id !== null && $checkout->remote_id !== $id) || (string) ($data['id'] ?? '') !== $id
+            || ($data['external_reference'] ?? null) !== $checkout->uuid) {
             throw new RuntimeException('Identificação da recorrência divergente.');
         }
         $auto = $data['auto_recurring'] ?? [];
@@ -89,7 +110,7 @@ class SynchronizeMercadoPago
         $checkout->update(['remote_id' => $id, 'status' => $status,
             'checkout_url' => isset($data['init_point']) ? $this->client->checkoutUrl($data['init_point']) : $checkout->checkout_url,
             'cancelled_at' => $status === 'cancelled' ? ($checkout->cancelled_at ?? now()) : null,
-            'last_synced_at' => now()]);
+        ]);
         // Authorization/cancellation never pays an invoice or removes an already paid period.
     }
 
@@ -225,5 +246,50 @@ class SynchronizeMercadoPago
         }
 
         return (int) round((float) $amount * 100);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function findCheckout(array $response, SubscriptionCheckout $checkout): ?array
+    {
+        if (! isset($response['results']) || ! is_array($response['results'])) {
+            throw new RuntimeException('O Mercado Pago retornou uma busca incompleta. Não foi possível confirmar a criação.');
+        }
+        $matches = collect($response['results'])->filter(fn ($row): bool => is_array($row) && ($row['external_reference'] ?? null) === $checkout->uuid);
+        if ($matches->count() > 1) {
+            throw new RuntimeException('Mais de um registro foi localizado para esta tentativa. Revisão administrativa necessária.');
+        }
+        $match = $matches->first();
+        if ($match !== null && (! is_scalar($match['id'] ?? null) || blank($match['id']))) {
+            throw new RuntimeException('O Mercado Pago retornou um registro sem identificação. A criação não pôde ser confirmada.');
+        }
+
+        return $match;
+    }
+
+    /** @return array{level: string, message: string} */
+    private function feedback(SubscriptionCheckout $checkout): array
+    {
+        $payment = $checkout->payments()->with('invoice')->latest('id')->first();
+        if ($payment?->status === 'approved' && $payment->review_reason === 'test_payment_not_applied') {
+            return ['level' => 'info', 'message' => 'Pagamento de teste confirmado no Mercado Pago. É uma simulação: nenhuma mensalidade real foi quitada e o acesso não foi liberado.'];
+        }
+        if ($payment?->review_reason) {
+            return ['level' => 'warning', 'message' => 'O pagamento '.$payment->remote_id.' exige revisão administrativa. Esta consulta não confirma liberação do acesso. Confira o histórico no painel SaaS.'];
+        }
+        if ($payment?->status === 'approved' && $payment->applied_at && $payment->invoice?->paid_at) {
+            return ['level' => 'success', 'message' => 'Pagamento '.$payment->remote_id.' confirmado: mensalidade de '.$payment->invoice->reference_month->format('m/Y').' quitada.'.($checkout->subscription->allowsAccess() ? ' Acesso liberado.' : ' O acesso continua bloqueado; fale com o atendimento.')];
+        }
+        $message = match ($checkout->status) {
+            'pending' => $checkout->kind === 'card' ? 'Assinatura criada, aguardando sua autorização no Mercado Pago. Nenhum pagamento foi confirmado.' : 'Pix aguardando pagamento. Nenhuma baixa foi confirmada.',
+            'in_process' => 'Pagamento ainda em processamento. Nenhuma baixa foi confirmada.',
+            'authorized' => 'Recorrência autorizada no Mercado Pago. Nenhum pagamento confirmado foi localizado nesta consulta; o acesso não foi liberado por ela.',
+            'paused' => 'A recorrência está pausada no Mercado Pago. Nenhum novo pagamento foi confirmado nesta consulta.',
+            'cancelled' => 'O Mercado Pago informa que esta cobrança ou recorrência está cancelada. Isso não é confirmação de pagamento.',
+            'rejected' => 'O Mercado Pago recusou esta tentativa. Nenhum pagamento foi confirmado.',
+            'refunded', 'charged_back' => 'O Mercado Pago informa estorno ou contestação. O pagamento precisa de revisão administrativa.',
+            default => 'Não foi possível confirmar pagamento ou liberação de acesso. Consulte o atendimento.',
+        };
+
+        return ['level' => in_array($checkout->status, ['rejected', 'refunded', 'charged_back'], true) ? 'warning' : 'info', 'message' => $message];
     }
 }

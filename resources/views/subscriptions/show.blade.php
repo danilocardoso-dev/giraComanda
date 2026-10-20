@@ -37,7 +37,7 @@
             </section>
 
             <aside class="bg-white p-7 text-slate-900 sm:p-10 lg:p-12">
-                @if (session('success'))<p role="status" class="mb-5 rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{{ session('success') }}</p>@endif
+                <x-flash-message />
                 @if ($errors->any())<div role="alert" class="mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-800">@foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
                 <p class="text-sm font-black uppercase tracking-[0.18em] text-brand-700">Plano GiraComanda</p>
                 <div class="mt-4 flex items-end gap-2"><span class="text-5xl font-black">R$ {{ number_format(($subscription?->monthly_amount_cents ?? config('giracomanda.subscription.monthly_amount_cents')) / 100, 0, ',', '.') }}</span><span class="pb-1 text-slate-500">/mês</span></div>
@@ -54,7 +54,7 @@
                         <form method="POST" action="{{ route('subscription.checkouts.store') }}" class="grid gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
                             @csrf
                             <p class="font-black text-brand-950">Escolha como continuar</p>
-                            <div><label for="payer_email" class="text-sm font-bold text-slate-700">E-mail do pagador no Mercado Pago</label><input id="payer_email" name="payer_email" type="email" required maxlength="254" value="{{ old('payer_email', auth()->user()->email) }}" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950"></div>
+                            <div><label for="payer_email" class="text-sm font-bold text-slate-700">E-mail do pagador no Mercado Pago</label><input id="payer_email" name="payer_email" type="email" required maxlength="254" value="{{ old('payer_email', $paymentEnvironment === 'test' ? '' : auth()->user()->email) }}" aria-describedby="payer-email-help" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950"><p id="payer-email-help" class="mt-2 text-sm leading-6 text-slate-600">{{ $paymentEnvironment === 'test' ? 'Informe o e-mail da conta COMPRADORA de teste do Mercado Pago, não o login do GiraComanda. Comprador e vendedor precisam pertencer a ambientes compatíveis.' : 'Informe o e-mail da conta que autorizará o pagamento no Mercado Pago.' }}</p></div>
                             <button name="kind" value="pix" class="rounded-xl bg-brand-800 px-5 py-3.5 font-bold text-white hover:bg-brand-900">Gerar Pix desta mensalidade</button>
                             <label class="flex items-start gap-2 text-sm leading-6 text-slate-700"><input type="checkbox" name="recurring_consent" value="1" class="mt-1 size-4 shrink-0 accent-brand-700">Autorizo a assinatura mensal recorrente de R$ {{ number_format($subscription->monthly_amount_cents / 100, 2, ',', '.') }}, até o cancelamento. A confirmação do cartão acontece no Mercado Pago.</label>
                             <button name="kind" value="card" class="rounded-xl bg-warm-500 px-5 py-3.5 font-black text-brand-950 hover:bg-warm-400">Assinar com cartão</button>
@@ -62,13 +62,17 @@
                         </form>
                     @endif
                     @if ($canManageBilling)
+                        @if ($failedCheckout)
+                            <div role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-900"><p class="font-bold">{{ $failedCheckout->statusLabel() }}{{ $failedCheckout->failure_http_status ? ' · HTTP '.$failedCheckout->failure_http_status : '' }}</p><p class="mt-2">{{ $failedCheckout->failure_message }}</p><p class="mt-2">{{ $failedCheckout->status === 'rejected' ? 'Esta tentativa não confirma assinatura nem pagamento. Corrija o motivo indicado e tente novamente no formulário.' : 'O resultado da criação ainda é desconhecido. Uma consulta sem resultado não confirma pagamento nem cancelamento.' }}</p></div>
+                        @endif
                         @foreach ($checkouts->filter(fn ($checkout) => $checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['creating', 'pending', 'in_process'], true))) as $checkout)
                             <div class="grid gap-3 rounded-2xl border border-slate-200 p-5">
                                 <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment === 'test' ? 'Teste' : 'Produção' }}</p>
-                                <p class="text-sm text-slate-600">Situação: {{ ['creating' => 'Em verificação', 'pending' => 'Aguardando pagamento/autorização', 'in_process' => 'Em processamento', 'authorized' => 'Recorrência autorizada', 'paused' => 'Recorrência pausada'][$checkout->status] ?? $checkout->status }}</p>
+                                <p class="text-sm text-slate-600">Situação: {{ $checkout->statusLabel() }}</p>
+                                @if (! $checkout->remote_id)<p class="text-sm leading-6 text-amber-900">Não há um ID de cobrança ou assinatura confirmado para esta tentativa. Encerrar a tentativa abaixo é uma ação local, não um cancelamento confirmado no Mercado Pago.</p>@endif
                                 @if ($checkout->kind === 'card' && $checkout->status === 'pending' && $checkout->checkout_url)<a href="{{ $checkout->checkout_url }}" class="font-bold text-brand-800 underline">Continuar no Mercado Pago</a>@endif
-                                <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 text-sm font-bold text-brand-800 underline">Já paguei / Consultar situação</button></form>
-                                <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 text-sm font-bold text-red-700 underline">{{ $checkout->kind === 'card' ? 'Cancelar próximas cobranças' : 'Cancelar este Pix' }}</button></form>
+                                <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 text-sm font-bold text-brand-800 underline">Consultar no Mercado Pago</button></form>
+                                <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 text-sm font-bold text-red-700 underline">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : ($checkout->kind === 'card' ? 'Cancelar próximas cobranças' : 'Cancelar este Pix') }}</button></form>
                                 @if ($checkout->expires_at)<p class="text-xs text-slate-500">QR Code válido até {{ $checkout->expires_at->format('d/m/Y H:i') }}. Após expirar, consulte e cancele antes de gerar outro.</p>@endif
                             </div>
                         @endforeach
@@ -95,7 +99,7 @@
                                 <button type="button" data-copy-text="{{ $pixCopyPaste }}" class="mt-4 w-full rounded-xl bg-emerald-800 px-4 py-3 text-sm font-black text-white hover:bg-emerald-900">Copiar PIX copia e cola</button>
                                 <p data-copy-feedback class="mt-2 hidden text-center text-xs font-bold text-emerald-800">Código PIX copiado.</p>
                             @endif
-                            <p class="mt-4 text-sm leading-6 text-emerald-800">{{ $dynamicPix ? 'A confirmação é automática. Após pagar, clique em “Já paguei / Consultar situação”.' : 'Depois do pagamento, envie o comprovante para a confirmação e liberação do acesso.' }}</p>
+                            <p class="mt-4 text-sm leading-6 text-emerald-800">{{ $dynamicPix ? 'A confirmação depende do Mercado Pago. Após pagar, clique em “Consultar no Mercado Pago”.' : 'Depois do pagamento, envie o comprovante para a confirmação e liberação do acesso.' }}</p>
                         </div>
                     @endif
 

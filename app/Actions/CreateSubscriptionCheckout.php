@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\PlatformPaymentSetting;
 use App\Models\Subscription;
 use App\Models\SubscriptionCheckout;
+use App\Services\MercadoPagoApiException;
 use App\Services\MercadoPagoClient;
 use App\SubscriptionStatus;
 use Illuminate\Support\Facades\Cache;
@@ -14,7 +15,7 @@ use RuntimeException;
 
 class CreateSubscriptionCheckout
 {
-    public function __construct(private MercadoPagoClient $client, private SynchronizeSubscriptionInvoices $invoices) {}
+    public function __construct(private MercadoPagoClient $client, private SynchronizeSubscriptionInvoices $invoices, private SynchronizeMercadoPago $synchronize) {}
 
     public function handle(Subscription $subscription, string $kind, string $email): SubscriptionCheckout
     {
@@ -82,45 +83,56 @@ class CreateSubscriptionCheckout
                 'expires_at' => $kind === 'pix' ? now()->addDay() : null,
             ]);
 
-            if ($kind === 'pix') {
-                $data = $this->client->request($checkout->environment, 'POST', '/v1/payments', [
-                    'transaction_amount' => $checkout->amount_cents / 100,
-                    'description' => 'Mensalidade GiraComanda', 'payment_method_id' => 'pix',
-                    'payer' => ['email' => $checkout->payer_email], 'external_reference' => $checkout->uuid,
-                    'notification_url' => $this->client->webhookUrl($checkout->environment),
-                    'date_of_expiration' => $checkout->expires_at->toIso8601String(),
-                ], $checkout->uuid);
-                if (blank($data['id'] ?? null) || blank(data_get($data, 'point_of_interaction.transaction_data.qr_code'))) {
-                    throw new RuntimeException('O Mercado Pago ainda não disponibilizou o QR Code. Consulte novamente.');
-                }
-                $checkout->update([
-                    'remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
-                    'pix_code' => data_get($data, 'point_of_interaction.transaction_data.qr_code'),
-                    'expires_at' => $data['date_of_expiration'] ?? $checkout->expires_at,
-                ]);
-            } else {
-                if ($checkout->wasRecentlyCreated === false) {
-                    // The subscriptions API does not promise idempotent creation. Reconcile an ambiguous timeout, never blindly repeat POST.
-                    $found = $this->client->request($checkout->environment, 'GET', '/preapproval/search', ['external_reference' => $checkout->uuid]);
-                    $data = collect($found['results'] ?? [])->first(fn (array $item): bool => ($item['external_reference'] ?? null) === $checkout->uuid);
-                    if ($data === null) {
-                        throw new RuntimeException('A criação da recorrência está em verificação. Fale com o atendimento antes de tentar novamente.');
+            try {
+                if ($kind === 'pix') {
+                    $data = $this->client->request($checkout->environment, 'POST', '/v1/payments', [
+                        'transaction_amount' => $checkout->amount_cents / 100,
+                        'description' => 'Mensalidade GiraComanda', 'payment_method_id' => 'pix',
+                        'payer' => ['email' => $checkout->payer_email], 'external_reference' => $checkout->uuid,
+                        'notification_url' => $this->client->webhookUrl($checkout->environment),
+                        'date_of_expiration' => $checkout->expires_at->toIso8601String(),
+                    ], $checkout->uuid);
+                    if (blank($data['id'] ?? null) || blank(data_get($data, 'point_of_interaction.transaction_data.qr_code'))) {
+                        throw new RuntimeException('O Mercado Pago ainda não disponibilizou o QR Code. Consulte novamente.');
                     }
-                } else {
-                    $data = $this->client->request($checkout->environment, 'POST', '/preapproval', [
-                        'reason' => 'GiraComanda — assinatura mensal', 'external_reference' => $checkout->uuid,
-                        'payer_email' => $checkout->payer_email,
-                        'auto_recurring' => ['frequency' => 1, 'frequency_type' => 'months', 'transaction_amount' => $checkout->amount_cents / 100, 'currency_id' => 'BRL'],
-                        'back_url' => rtrim(config('app.url'), '/').route('subscription.show', [], false),
-                        'status' => 'pending',
+                    $checkout->update([
+                        'remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
+                        'pix_code' => data_get($data, 'point_of_interaction.transaction_data.qr_code'),
+                        'expires_at' => $data['date_of_expiration'] ?? $checkout->expires_at,
                     ]);
+                } else {
+                    if ($checkout->wasRecentlyCreated === false) {
+                        // The subscriptions API does not promise idempotent creation. Reconcile an ambiguous timeout, never blindly repeat POST.
+                        if (! $this->synchronize->recover($checkout)) {
+                            throw new RuntimeException('Nenhuma assinatura foi localizada para a tentativa anterior. A criação não foi confirmada; consulte ou encerre a tentativa local antes de iniciar outra.');
+                        }
+                        $checkout->refresh()->update(['failure_http_status' => null, 'failure_message' => null, 'failed_at' => null]);
+
+                        return $checkout;
+                    } else {
+                        $data = $this->client->request($checkout->environment, 'POST', '/preapproval', [
+                            'reason' => 'GiraComanda — assinatura mensal', 'external_reference' => $checkout->uuid,
+                            'payer_email' => $checkout->payer_email,
+                            'auto_recurring' => ['frequency' => 1, 'frequency_type' => 'months', 'transaction_amount' => $checkout->amount_cents / 100, 'currency_id' => 'BRL'],
+                            'back_url' => rtrim(config('app.url'), '/').route('subscription.show', [], false),
+                            'status' => 'pending',
+                        ]);
+                    }
+                    if (blank($data['id'] ?? null)) {
+                        throw new RuntimeException('A recorrência está em verificação. Tente consultar novamente.');
+                    }
+                    $checkout->update(['remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
+                        'checkout_url' => $this->client->checkoutUrl($data['init_point'] ?? '')]);
                 }
-                if (blank($data['id'] ?? null)) {
-                    throw new RuntimeException('A recorrência está em verificação. Tente consultar novamente.');
-                }
-                $checkout->update(['remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
-                    'checkout_url' => $this->client->checkoutUrl($data['init_point'] ?? '')]);
+            } catch (MercadoPagoApiException $exception) {
+                $checkout->update([
+                    'status' => $checkout->wasRecentlyCreated && $exception->isDefinitiveRejection() ? 'rejected' : $checkout->status,
+                    'failure_http_status' => $exception->httpStatus, 'failure_message' => $exception->getMessage(), 'failed_at' => now(),
+                ]);
+                throw $exception;
             }
+
+            $checkout->update(['failure_http_status' => null, 'failure_message' => null, 'failed_at' => null]);
 
             return $checkout;
         });

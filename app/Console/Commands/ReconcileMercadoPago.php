@@ -19,25 +19,26 @@ class ReconcileMercadoPago extends Command
      */
     public function handle(SynchronizeMercadoPago $synchronize): int
     {
-        $checkouts = SubscriptionCheckout::query()->where(function ($query): void {
+        $checkouts = SubscriptionCheckout::query()->where(fn ($query) => $query->whereNotNull('remote_id')->orWhere('status', 'creating'))->where(function ($query): void {
             $query->whereNotIn('status', ['cancelled', 'rejected', 'approved', 'refunded', 'charged_back'])
                 ->orWhere('created_at', '>=', now()->subDays(30));
-        })->orderBy('last_synced_at')->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
+        })->orderBy('last_attempted_at')->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
         $failures = 0;
+        $completed = 0;
         $deadline = microtime(true) + 180;
         foreach ($checkouts as $checkout) {
             try {
                 $synchronize->checkout($checkout);
+                $completed++;
             } catch (Throwable) {
                 $failures++;
                 Log::warning('Falha na conciliação Mercado Pago.', ['checkout_id' => $checkout->id]);
             }
-            $checkout->update(['last_synced_at' => now()]);
             if (microtime(true) >= $deadline) {
                 break;
             }
         }
-        $this->info('Checkouts consultados: '.$checkouts->count().'. Falhas: '.$failures.'.');
+        $this->info('Consultas concluídas: '.$completed.'. Falhas: '.$failures.'.');
 
         return $failures > 0 ? self::FAILURE : self::SUCCESS;
     }

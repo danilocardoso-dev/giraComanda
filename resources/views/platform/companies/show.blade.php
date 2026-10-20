@@ -107,12 +107,13 @@
         <div class="mt-5 grid gap-4 md:grid-cols-2">
             @forelse ($gatewayCheckouts as $checkout)
                 <article class="rounded-xl border border-slate-200 p-4 text-sm">
-                    <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment }} · {{ $checkout->status }}</p>
-                    <p class="mt-2 break-all text-slate-600">ID: {{ $checkout->remote_id ?? 'Criação em verificação' }}</p>
+                    <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment }} · {{ $checkout->statusLabel() }}</p>
+                    <p class="mt-2 break-all text-slate-600">ID: {{ $checkout->remote_id ?? 'Nenhum ID confirmado no Mercado Pago' }}</p>
+                    @if ($checkout->failure_message)<p class="mt-2 leading-6 text-red-800">{{ $checkout->failure_message }}</p>@endif
                     <div class="mt-3 flex flex-wrap gap-4">
                         <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 font-bold text-brand-800 underline">Consultar Mercado Pago</button></form>
                         @if ($checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['pending', 'in_process', 'creating'], true)))
-                            <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 font-bold text-red-700 underline">Cancelar {{ $checkout->kind === 'card' ? 'recorrência' : 'Pix' }}</button></form>
+                            <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 font-bold text-red-700 underline">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : 'Cancelar '.($checkout->kind === 'card' ? 'recorrência' : 'Pix') }}</button></form>
                         @endif
                     </div>
                 </article>

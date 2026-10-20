@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\PlatformPaymentSetting;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class MercadoPagoClient
@@ -31,15 +33,36 @@ class MercadoPagoClient
         try {
             $response = $client->send($method, $path, $method === 'GET' ? ['query' => $data] : ['json' => $data]);
         } catch (ConnectionException) {
-            throw new RuntimeException('O Mercado Pago não respondeu. Tente consultar novamente em instantes.');
+            throw new MercadoPagoApiException('O Mercado Pago não respondeu. O resultado da criação é desconhecido; consulte antes de tentar novamente.');
         }
 
         if (! $response->successful() || ! is_array($response->json())) {
-            // Do not persist provider bodies: they can contain payer data or credentials.
-            throw new RuntimeException('Não foi possível concluir a operação no Mercado Pago (HTTP '.$response->status().').');
+            $reason = $this->safeReason($response->json('message') ?? $response->json('error'), $token);
+            $requestId = $response->header('x-request-id');
+            $reference = is_string($requestId) && preg_match('/^[a-zA-Z0-9_-]{1,100}$/D', $requestId) ? $requestId : null;
+            Log::warning('Requisição recusada ou indisponível no Mercado Pago.', [
+                'environment' => $environment, 'method' => $method, 'path' => $path,
+                'http_status' => $response->status(), 'reason' => $reason, 'provider_request_id' => $reference,
+            ]);
+            throw new MercadoPagoApiException('Mercado Pago retornou HTTP '.$response->status().': '.$reason.($reference ? ' Referência: '.$reference.'.' : ''), $response->status());
         }
 
         return $response->json();
+    }
+
+    private function safeReason(mixed $message, string $token): string
+    {
+        if (! is_string($message) || trim($message) === '') {
+            return 'A API não informou um motivo legível.';
+        }
+        $message = str_replace($token, '[credencial omitida]', $message);
+        $message = preg_replace([
+            '/(?:APP_USR|TEST)-[a-zA-Z0-9_-]+/i',
+            '/[a-zA-Z0-9.!#$%&\x27*+\/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/',
+            '/https?:\/\/\S+/i', '/\b\d[\d .-]{9,}\d\b/', '/[\x00-\x1F\x7F]/',
+        ], '[dado omitido]', strip_tags($message));
+
+        return Str::limit(trim($message), 300);
     }
 
     public function checkoutUrl(string $url): string

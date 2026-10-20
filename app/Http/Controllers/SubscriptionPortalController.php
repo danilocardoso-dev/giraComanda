@@ -72,6 +72,7 @@ class SubscriptionPortalController extends Controller
             'recurrence' => $recurrence,
             'dynamicPix' => $dynamicPix,
             'checkouts' => $checkouts,
+            'failedCheckout' => $checkouts->first(fn (SubscriptionCheckout $checkout): bool => filled($checkout->failure_message) && in_array($checkout->status, ['creating', 'rejected'], true)),
         ]);
     }
 }

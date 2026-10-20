@@ -79,7 +79,7 @@
                             @endforeach
 
                             <div class="border-t border-slate-100 pt-5">
-                                <label for="{{ $item['key'] }}_plan_id" class="block text-sm font-bold text-slate-700">ID do plano de assinatura <span class="font-normal text-slate-500">(opcional)</span></label>
+                                <label for="{{ $item['key'] }}_plan_id" class="block text-sm font-bold text-slate-700">Referência administrativa de plano <span class="font-normal text-slate-500">(não usada no checkout atual)</span></label>
                                 <input id="{{ $item['key'] }}_plan_id" name="{{ $item['key'] }}_plan_id" type="text" maxlength="100" value="{{ old($item['key'].'_plan_id', $item['plan_id']) }}" autocomplete="off" spellcheck="false" aria-describedby="{{ $item['key'] }}-plan-help" class="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-sm text-slate-950 focus:border-brand-600 focus:outline-2 focus:outline-offset-2 focus:outline-brand-600">
                                 <p id="{{ $item['key'] }}-plan-help" class="mt-2 text-xs leading-5 text-slate-500">Referência administrativa opcional. O checkout cria uma assinatura individual por empresa, sem depender do link genérico deste plano, para vincular corretamente os pagamentos.</p>
                                 <x-input-error :messages="$errors->get($item['key'].'_plan_id')" />

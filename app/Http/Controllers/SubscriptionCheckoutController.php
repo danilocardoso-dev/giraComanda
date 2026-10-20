@@ -29,36 +29,44 @@ class SubscriptionCheckoutController extends Controller
         try {
             $checkout = $create->handle($subscription, $validated['kind'], $validated['payer_email']);
         } catch (RuntimeException|LockTimeoutException $exception) {
-            return back()->withErrors(['payment' => $exception instanceof LockTimeoutException ? 'Outra operação está em andamento. Aguarde e consulte novamente.' : $exception->getMessage()]);
+            return back()->withInput(['payer_email' => $validated['payer_email']])->withErrors(['payment' => $exception instanceof LockTimeoutException ? 'Outra operação está em andamento. Aguarde e consulte novamente.' : $exception->getMessage()]);
         }
         PlatformActivityLog::record($request, 'subscription_checkout_created', 'Pagamento '.$checkout->kind.' iniciado no ambiente '.$checkout->environment.'.', $subscription->company);
 
-        return $checkout->kind === 'card' ? redirect()->away($checkout->checkout_url) : to_route('subscription.show')->with('success', 'QR Code Pix gerado. A liberação ocorre após a confirmação do pagamento.');
+        if ($checkout->kind === 'card' && filled($checkout->checkout_url) && $checkout->status === 'pending') {
+            return redirect()->away($checkout->checkout_url);
+        }
+
+        return to_route('subscription.show')->with('payment_feedback', ['level' => 'info', 'message' => $checkout->kind === 'pix'
+            ? 'QR Code Pix disponibilizado. Nenhum pagamento foi confirmado; aguarde a confirmação do Mercado Pago.'
+            : 'Assinatura localizada no Mercado Pago. Consulte a situação do pagamento; a localização da assinatura não confirma quitação.']);
     }
 
     public function update(Request $request, SubscriptionCheckout $checkout, SynchronizeMercadoPago $synchronize): RedirectResponse
     {
         $this->authorizeCheckout($request, $checkout);
+        $request->session()->forget(['success', 'payment_feedback']);
         try {
-            $synchronize->checkout($checkout);
+            $result = $synchronize->checkout($checkout);
         } catch (RuntimeException $exception) {
             return back()->withErrors(['payment' => $exception->getMessage()]);
         }
 
-        return back()->with('success', 'Situação consultada no Mercado Pago.');
+        return back()->with('payment_feedback', $result);
     }
 
     public function destroy(Request $request, SubscriptionCheckout $checkout, CancelSubscriptionCheckout $cancel): RedirectResponse
     {
         $subscription = $this->authorizeCheckout($request, $checkout);
+        $request->session()->forget(['success', 'payment_feedback']);
         try {
-            $cancel->handle($checkout);
+            $result = $cancel->handle($checkout);
         } catch (RuntimeException|LockTimeoutException $exception) {
             return back()->withErrors(['payment' => $exception instanceof LockTimeoutException ? 'Outra operação está em andamento. Tente novamente.' : $exception->getMessage()]);
         }
-        PlatformActivityLog::record($request, 'subscription_checkout_cancelled', 'Cancelamento de '.$checkout->kind.' confirmado no Mercado Pago. Período já pago preservado.', $subscription->company);
+        PlatformActivityLog::record($request, $result['remote_cancelled'] ? 'subscription_checkout_cancelled' : 'subscription_checkout_cancel_not_confirmed', $result['message'], $subscription->company);
 
-        return back()->with('success', 'Cancelamento confirmado. O período já pago continua disponível.');
+        return back()->with('payment_feedback', ['level' => $result['level'], 'message' => $result['message']]);
     }
 
     private function authorizeCheckout(Request $request, SubscriptionCheckout $checkout): Subscription
