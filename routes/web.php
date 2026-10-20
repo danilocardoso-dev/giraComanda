@@ -25,6 +25,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EstablishmentSettingController;
 use App\Http\Controllers\ManagementReportController;
+use App\Http\Controllers\MercadoPagoWebhookController;
 use App\Http\Controllers\MonthlyClosingController;
 use App\Http\Controllers\MonthlyStatementDeliveryController;
 use App\Http\Controllers\PlatformCompanyController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\PlatformDashboardController;
 use App\Http\Controllers\PlatformInvoiceController;
 use App\Http\Controllers\PlatformInvoicePaymentController;
 use App\Http\Controllers\PlatformOwnerPasswordController;
+use App\Http\Controllers\PlatformPaymentSettingController;
 use App\Http\Controllers\PlatformSubscriptionController;
 use App\Http\Controllers\PlatformSupportSessionController;
 use App\Http\Controllers\ProductController;
@@ -42,18 +44,27 @@ use App\Http\Controllers\ReceivablePaymentController;
 use App\Http\Controllers\RequiredPasswordController;
 use App\Http\Controllers\ScannedTabController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\SubscriptionCheckoutController;
+use App\Http\Controllers\SubscriptionPortalController;
 use App\Http\Controllers\TabController;
 use App\Http\Controllers\TabItemController;
 use App\Http\Controllers\TabItemShareController;
 use App\Http\Controllers\TabReceiptController;
+use App\Http\Controllers\TrialRegistrationController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/dashboard');
+Route::view('/', 'marketing.home')->name('home');
 Route::view('/privacidade', 'legal.privacy')->name('privacy');
 Route::view('/termos-de-uso', 'legal.terms')->name('terms');
+Route::post('/webhooks/mercado-pago/{environment}', MercadoPagoWebhookController::class)
+    ->whereIn('environment', ['test', 'production'])->middleware('throttle:180,1')->name('mercado-pago.webhook');
 
 Route::middleware('guest')->group(function (): void {
+    Route::get('/teste-gratis', [TrialRegistrationController::class, 'create'])->name('trial.create');
+    Route::post('/teste-gratis', [TrialRegistrationController::class, 'store'])
+        ->middleware('throttle:5,10')
+        ->name('trial.store');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:login')
@@ -72,6 +83,14 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::get('/senha-temporaria', [RequiredPasswordController::class, 'edit'])->name('password.required.edit');
     Route::put('/senha-temporaria', [RequiredPasswordController::class, 'update'])->name('password.required.update');
+    Route::get('/assinatura', SubscriptionPortalController::class)
+        ->middleware('password.changed')
+        ->name('subscription.show');
+    Route::middleware(['password.changed', 'throttle:10,1'])->group(function (): void {
+        Route::post('/assinatura/pagamentos', [SubscriptionCheckoutController::class, 'store'])->name('subscription.checkouts.store');
+        Route::put('/assinatura/pagamentos/{checkout}', [SubscriptionCheckoutController::class, 'update'])->name('subscription.checkouts.update');
+        Route::delete('/assinatura/pagamentos/{checkout}', [SubscriptionCheckoutController::class, 'destroy'])->name('subscription.checkouts.destroy');
+    });
     Route::delete('/plataforma/suporte', [PlatformSupportSessionController::class, 'destroy'])
         ->middleware('platform.admin')
         ->name('platform.support.destroy');
@@ -80,6 +99,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::prefix('plataforma')->name('platform.')->middleware(['platform.admin', 'password.changed'])->group(function (): void {
         Route::get('/', PlatformDashboardController::class)->name('dashboard');
+        Route::get('/configuracoes/pagamentos', [PlatformPaymentSettingController::class, 'edit'])->name('payment-settings.edit');
+        Route::put('/configuracoes/pagamentos', [PlatformPaymentSettingController::class, 'update'])->name('payment-settings.update');
         Route::get('/empresas', [PlatformCompanyController::class, 'index'])->name('companies.index');
         Route::post('/empresas', [PlatformCompanyController::class, 'store'])->name('companies.store');
         Route::get('/empresas/{company}', PlatformCompanyShowController::class)->name('companies.show');

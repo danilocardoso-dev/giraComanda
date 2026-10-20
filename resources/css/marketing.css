@@ -1,0 +1,257 @@
+@layer components {
+    .marketing-page {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        @apply bg-white text-base text-slate-700 antialiased sm:text-lg;
+    }
+
+    .landing-container {
+        @apply mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-12;
+    }
+
+    .landing-section {
+        @apply py-20 sm:py-24 lg:py-28;
+    }
+
+    .landing-kicker {
+        @apply text-sm font-semibold tracking-[0.12em] text-brand-700 uppercase;
+    }
+
+    .landing-heading {
+        @apply text-[2rem] leading-[1.12] font-semibold tracking-[-0.04em] text-balance text-brand-950 sm:text-[2.75rem] lg:text-5xl;
+    }
+
+    .landing-copy {
+        @apply text-lg leading-8 text-slate-600;
+    }
+
+    .landing-cta {
+        @apply inline-flex min-h-14 items-center justify-center gap-4 rounded-lg bg-yellow-400 px-7 py-4 text-base font-bold text-brand-950 transition-colors hover:bg-yellow-300;
+        box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
+    }
+
+    .landing-link {
+        @apply inline-flex min-h-11 items-center justify-center gap-2 text-base font-semibold underline-offset-4 hover:underline;
+    }
+
+    .landing-number {
+        @apply text-4xl leading-none font-medium tracking-[-0.06em] text-brand-600 tabular-nums;
+    }
+
+    .landing-metric {
+        @apply text-3xl leading-tight font-semibold tracking-[-0.04em] text-brand-950 tabular-nums sm:text-4xl;
+    }
+
+    .marketing-page :is(a, button, input, summary):focus-visible {
+        outline: 3px solid var(--color-brand-600);
+        outline-offset: 5px;
+    }
+
+    .landing-dark :is(a, button, input, summary):focus-visible {
+        outline-color: var(--color-yellow-400);
+    }
+
+    .marketing-page summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .landing-header {
+        background: rgb(237 243 230 / 0.95);
+        @apply border-brand-200;
+    }
+
+    .landing-hero,
+    .landing-pricing {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        background: radial-gradient(ellipse at 80% 25%, rgb(93 157 103 / 0.26), transparent 58%),
+            linear-gradient(120deg, #112010, #173f2d 72%, #153324);
+    }
+
+    .landing-hero > .landing-container,
+    .landing-pricing > .landing-container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .landing-hero::before,
+    .landing-pricing::before {
+        content: '';
+        position: absolute;
+        pointer-events: none;
+        width: 46rem;
+        height: 46rem;
+        border: 1px solid rgb(203 220 194 / 0.12);
+        border-radius: 50%;
+        top: -19rem;
+        right: -13rem;
+        box-shadow: 0 0 0 5rem rgb(167 195 153 / 0.035), 0 0 0 10rem rgb(167 195 153 / 0.025);
+    }
+
+    .landing-hero::after {
+        content: '';
+        position: absolute;
+        inset: 12% -10% -25% 35%;
+        pointer-events: none;
+        border-radius: 50%;
+        background: radial-gradient(ellipse, rgb(139 189 124 / 0.14), transparent 65%);
+    }
+
+    .landing-pain {
+        background: #f2f1e7;
+    }
+
+    .landing-flow {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #254d39, #163626 85%);
+    }
+
+    .landing-results {
+        background: linear-gradient(110deg, #e3ecd9, #f0f4e9);
+    }
+
+    .landing-features {
+        background: linear-gradient(135deg, #f2f6ee, #fff 70%);
+    }
+
+    .landing-faq {
+        background: #eef2e7;
+    }
+
+    .landing-pricing::before {
+        top: auto;
+        bottom: -30rem;
+        right: calc(50% - 23rem);
+        width: 46rem;
+        height: 46rem;
+    }
+
+    .landing-preview {
+        box-shadow: 0 35px 80px rgb(0 0 0 / 0.3), 0 0 0 8px rgb(255 255 255 / 0.035);
+    }
+
+    .landing-motion-toggle {
+        @apply min-h-11 cursor-pointer text-sm font-medium text-brand-100 underline decoration-brand-300/60 underline-offset-4 hover:text-white;
+    }
+
+    .landing-step {
+        position: relative;
+    }
+
+    .landing-step::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 0;
+        width: 3rem;
+        height: 2px;
+        background: var(--color-brand-300);
+    }
+
+    .landing-feature-row {
+        transition: background-color 200ms ease;
+    }
+
+    .landing-feature-row:hover {
+        background-color: rgb(203 220 194 / 0.16);
+    }
+
+    .landing-feature-row li > span:first-child,
+    .landing-cta > span,
+    .landing-link > span {
+        transition: transform 220ms ease;
+    }
+
+    .landing-faq details[open] {
+        border-color: var(--color-brand-300);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .marketing-page[data-motion='enabled'] [data-reveal] {
+            transition: opacity 650ms ease, transform 650ms cubic-bezier(0.2, 0.65, 0.3, 1);
+            transition-delay: var(--reveal-delay, 0ms);
+        }
+
+        .marketing-page[data-motion='enabled'] [data-reveal].is-pending {
+            opacity: 0;
+            transform: translateY(24px);
+        }
+
+        .marketing-page [data-reveal-delay='1'] { --reveal-delay: 90ms; }
+        .marketing-page [data-reveal-delay='2'] { --reveal-delay: 180ms; }
+        .marketing-page [data-reveal-delay='3'] { --reveal-delay: 270ms; }
+
+        .marketing-page[data-motion='enabled'] [data-hero-enter] {
+            animation: landing-enter 750ms both cubic-bezier(0.2, 0.65, 0.3, 1);
+            animation-delay: var(--hero-delay, 0ms);
+        }
+
+        .marketing-page [data-hero-enter='1'] { --hero-delay: 100ms; }
+        .marketing-page [data-hero-enter='2'] { --hero-delay: 200ms; }
+        .marketing-page [data-hero-enter='3'] { --hero-delay: 300ms; }
+
+        .marketing-page[data-motion='enabled'] .landing-preview {
+            animation: landing-float 7s ease-in-out infinite;
+        }
+
+        .marketing-page[data-motion='enabled'] .landing-hero::after {
+            animation: landing-ambient 15s ease-in-out infinite alternate;
+        }
+
+        .marketing-page .landing-hero[data-in-view='false'] .landing-preview,
+        .marketing-page .landing-hero[data-in-view='false']::after,
+        .marketing-page .landing-preview:hover {
+            animation-play-state: paused;
+        }
+
+        .marketing-page[data-motion='enabled'] .landing-cta {
+            transition: background-color 180ms ease, box-shadow 220ms ease, transform 220ms ease;
+        }
+
+        @media (hover: hover) {
+            .marketing-page[data-motion='enabled'] .landing-cta:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 14px 34px rgb(250 204 21 / 0.18);
+            }
+
+            .marketing-page[data-motion='enabled'] :is(.landing-cta, .landing-link):hover > span {
+                transform: translateX(4px);
+            }
+
+            .marketing-page[data-motion='enabled'] .landing-feature-row:hover li > span:first-child {
+                transform: translateX(3px);
+            }
+        }
+
+        .marketing-page[data-motion='enabled'] .landing-faq details[open] > p {
+            animation: landing-enter 300ms ease-out both;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .marketing-page [data-reveal] {
+            opacity: 1;
+            transform: none;
+        }
+
+        .marketing-page :is(.landing-cta, .landing-link, .landing-feature-row) > span {
+            transition: none;
+        }
+    }
+
+    @keyframes landing-enter {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes landing-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-9px); }
+    }
+
+    @keyframes landing-ambient {
+        from { transform: translate3d(-3%, 2%, 0) scale(1); }
+        to { transform: translate3d(5%, -4%, 0) scale(1.12); }
+    }
+}

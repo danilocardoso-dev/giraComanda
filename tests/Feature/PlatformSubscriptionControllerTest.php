@@ -22,7 +22,9 @@ class PlatformSubscriptionControllerTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-10-13 10:00:00'));
         $platformAdmin = User::factory()->platformAdmin()->create();
         $company = Company::factory()->create(['name' => 'Restaurante Assinante']);
-        $subscription = Subscription::factory()->for($company)->create();
+        $subscription = Subscription::factory()->for($company)->create([
+            'status' => SubscriptionStatus::Suspended,
+        ]);
 
         $response = $this->actingAs($platformAdmin)->put(route('platform.subscriptions.update', $company), [
             'status' => SubscriptionStatus::Active->value,
@@ -116,7 +118,9 @@ class PlatformSubscriptionControllerTest extends TestCase
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
         $company = Company::factory()->create();
-        $subscription = Subscription::factory()->for($company)->create();
+        $subscription = Subscription::factory()->for($company)->create([
+            'status' => SubscriptionStatus::Suspended,
+        ]);
 
         $createResponse = $this->actingAs($platformAdmin)->post(route('platform.invoices.store', $company), [
             'reference_month' => '2026-10',
@@ -132,12 +136,30 @@ class PlatformSubscriptionControllerTest extends TestCase
         $paymentResponse = $this->actingAs($platformAdmin)->post(route('platform.invoices.payments.store', [$company, $invoice]), [
             'paid_on' => '2026-10-12',
             'payment_method' => 'pix',
+            'reactivate_access' => true,
         ]);
 
         $paymentResponse->assertRedirect();
         $this->assertSame('pix', $invoice->refresh()->payment_method);
         $this->assertSame('2026-10-12', $invoice->paid_at->toDateString());
+        $this->assertSame(SubscriptionStatus::Active, $subscription->refresh()->status);
         $this->assertSame(2, PlatformActivityLog::query()->where('company_id', $company->id)->count());
+    }
+
+    public function test_subscription_invoice_payment_accepts_only_pix(): void
+    {
+        $platformAdmin = User::factory()->platformAdmin()->create();
+        $company = Company::factory()->create();
+        $subscription = Subscription::factory()->for($company)->create();
+        $invoice = SubscriptionInvoice::factory()->for($subscription)->create();
+
+        $response = $this->actingAs($platformAdmin)->post(route('platform.invoices.payments.store', [$company, $invoice]), [
+            'paid_on' => today()->toDateString(),
+            'payment_method' => 'credit_card',
+        ]);
+
+        $response->assertSessionHasErrors('payment_method');
+        $this->assertNull($invoice->refresh()->paid_at);
     }
 
     public function test_overdue_invoices_appear_on_platform_dashboard(): void
@@ -176,6 +198,98 @@ class PlatformSubscriptionControllerTest extends TestCase
 
         $response = $this->actingAs($cashier)->get(route('dashboard'));
 
-        $response->assertForbidden();
+        $response->assertRedirect(route('subscription.show'));
+    }
+
+    public function test_expired_trial_redirects_to_subscription_portal(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 10:00:00'));
+        $owner = User::factory()->admin()->create();
+        $company = Company::query()->where('slug', 'empresa-inicial')->sole();
+        $company->subscription()->update([
+            'status' => SubscriptionStatus::Trial,
+            'trial_ends_at' => '2026-10-15',
+            'monthly_amount_cents' => 19700,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('dashboard'));
+
+        $response->assertRedirect(route('subscription.show'));
+        $this->actingAs($owner)
+            ->get(route('subscription.show'))
+            ->assertOk()
+            ->assertSee('Seu período gratuito terminou.')
+            ->assertSee('R$ 197');
+        $invoice = $company->subscription->invoices()->sole();
+        $this->assertSame('2026-10-16', $invoice->due_date->toDateString());
+        $this->assertSame(19700, $invoice->amount_cents);
+        $this->assertTrue($invoice->generated_automatically);
+    }
+
+    public function test_trial_remains_available_through_its_last_day(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 22:00:00'));
+        $owner = User::factory()->admin()->create();
+        $company = Company::query()->where('slug', 'empresa-inicial')->sole();
+        $company->subscription()->update([
+            'status' => SubscriptionStatus::Trial,
+            'trial_ends_at' => '2026-10-16',
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('dashboard'));
+
+        $response->assertOk();
+        $this->assertSame(0, $company->subscription->invoices()->count());
+    }
+
+    public function test_expired_trial_portal_shows_configured_pix_qr_code_and_copy_paste(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-23 10:00:00'));
+        config()->set('giracomanda.subscription.pix_key', 'financeiro@giracomanda.test');
+        config()->set('giracomanda.subscription.pix_copy_paste', '00020101021226890014br.gov.bcb.pix2567pix.example/charge');
+        $owner = User::factory()->admin()->create();
+        $company = Company::query()->where('slug', 'empresa-inicial')->sole();
+        $company->subscription()->update([
+            'status' => SubscriptionStatus::Trial,
+            'trial_ends_at' => '2026-10-22',
+            'monthly_amount_cents' => 19700,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('subscription.show'));
+
+        $response->assertOk();
+        $response->assertSee('R$ 197,00');
+        $response->assertSee('financeiro@giracomanda.test');
+        $response->assertSee('Copiar PIX copia e cola');
+        $response->assertSee('QR Code PIX da mensalidade do GiraComanda');
+    }
+
+    public function test_paying_first_trial_invoice_reactivates_access_and_anchors_monthly_billing(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-23 10:00:00'));
+        $platformAdmin = User::factory()->platformAdmin()->create();
+        $company = Company::factory()->create();
+        $subscription = Subscription::factory()->for($company)->create([
+            'status' => SubscriptionStatus::Trial,
+            'monthly_amount_cents' => 19700,
+            'started_at' => '2026-10-16',
+            'trial_ends_at' => '2026-10-22',
+        ]);
+
+        $this->artisan('subscriptions:sync-invoices')->assertSuccessful();
+        $invoice = $subscription->invoices()->sole();
+
+        $response = $this->actingAs($platformAdmin)->post(route('platform.invoices.payments.store', [$company, $invoice]), [
+            'paid_on' => '2026-10-23',
+            'payment_method' => 'pix',
+            'reactivate_access' => true,
+        ]);
+
+        $response->assertRedirect();
+        $subscription->refresh();
+        $this->assertSame(SubscriptionStatus::Active, $subscription->status);
+        $this->assertNull($subscription->trial_ends_at);
+        $this->assertSame('2026-10-23', $subscription->started_at->toDateString());
+        $this->assertSame(23, $subscription->billing_day);
     }
 }

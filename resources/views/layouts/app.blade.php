@@ -58,6 +58,7 @@
                     <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">Relatórios</x-nav-link>
                     @if ($isCompanyAdmin)
                         <x-nav-link :href="route('company-branches.index')" :active="request()->routeIs('company-branches.*')">Empresa e filiais</x-nav-link>
+                        <x-nav-link :href="route('subscription.show')" :active="request()->routeIs('subscription.*')">Assinatura</x-nav-link>
                     @endif
                     <x-nav-link :href="route('audit.index')" :active="request()->routeIs('audit.*')">Auditoria</x-nav-link>
                     <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">Usuários</x-nav-link>
@@ -112,6 +113,7 @@
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('reports.index') }}">Relatórios</a>
                                     @if ($isCompanyAdmin)
                                         <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('company-branches.index') }}">Empresa e filiais</a>
+                                        <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('subscription.show') }}">Assinatura</a>
                                     @endif
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('audit.index') }}">Auditoria</a>
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('users.index') }}">Usuários</a>

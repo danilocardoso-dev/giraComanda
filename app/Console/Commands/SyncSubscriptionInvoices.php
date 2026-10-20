@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('subscriptions:sync-invoices')]
-#[Description('Gera e atualiza as mensalidades automáticas das assinaturas ativas')]
+#[Description('Gera a primeira cobrança após o teste e sincroniza mensalidades de assinaturas ativas')]
 class SyncSubscriptionInvoices extends Command
 {
     /**

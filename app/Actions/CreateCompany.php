@@ -19,11 +19,14 @@ use Illuminate\Support\Str;
 class CreateCompany
 {
     /**
-     * @param  array{company_name: string, branch_name: string, owner_name: string, owner_email: string, owner_password: string}  $data
+     * @param  array{company_name: string, branch_name: string, owner_name: string, owner_email: string, owner_password: string, billing_phone?: string|null}  $data
      */
     public function handle(array $data): Company
     {
         return DB::transaction(function () use ($data): Company {
+            $trialDays = max(1, (int) config('giracomanda.subscription.trial_days'));
+            $trialEndsAt = today()->addDays($trialDays - 1);
+            $firstBillingDate = $trialEndsAt->copy()->addDay();
             $company = Company::query()->create([
                 'name' => $data['company_name'],
                 'slug' => $this->uniqueCompanySlug($data['company_name']),
@@ -59,16 +62,19 @@ class CreateCompany
             EstablishmentSetting::query()->create([
                 'company_id' => $company->id,
                 'name' => $company->name,
+                'phone' => $data['billing_phone'] ?? null,
+                'email' => $data['owner_email'],
                 'general_due_day' => config('giracomanda.general_due_day'),
                 'currency' => 'BRL',
             ]);
             Subscription::query()->create([
                 'company_id' => $company->id,
                 'status' => SubscriptionStatus::Trial,
-                'monthly_amount_cents' => 0,
-                'billing_day' => 10,
+                'monthly_amount_cents' => config('giracomanda.subscription.monthly_amount_cents'),
+                'billing_day' => min($firstBillingDate->day, 28),
+                'billing_phone' => $data['billing_phone'] ?? null,
                 'started_at' => today(),
-                'trial_ends_at' => today()->addDays(14),
+                'trial_ends_at' => $trialEndsAt,
             ]);
 
             return $company;

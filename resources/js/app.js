@@ -1,4 +1,5 @@
 import { BrowserQRCodeReader } from '@zxing/browser';
+import { setupMarketingPage } from './marketing';
 
 const onlyDigits = (value, limit) => value.replace(/\D/g, '').slice(0, limit);
 
@@ -357,6 +358,27 @@ const setupQrScanner = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     setupQrScanner();
+    setupMarketingPage();
+
+    document.querySelectorAll('[data-copy-text]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            const text = button.dataset.copyText;
+
+            if (! text) {
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const feedback = button.parentElement?.querySelector('[data-copy-feedback]');
+
+                feedback?.classList.remove('hidden');
+                window.setTimeout(() => feedback?.classList.add('hidden'), 3000);
+            } catch (_error) {
+                window.prompt('Copie o código PIX:', text);
+            }
+        });
+    });
 
     const customerSummaryModal = document.querySelector('[data-customer-summary-modal]');
     const customerSummaryContent = customerSummaryModal?.querySelector('[data-customer-summary-content]');

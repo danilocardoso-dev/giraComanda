@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ResolveBranchContext;
 use App\Http\Middleware\SecurityHeaders;
+use App\Models\PlatformPaymentSetting;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->preventRequestForgery(except: ['webhooks/mercado-pago/test', 'webhooks/mercado-pago/production']);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([
             'branch.context' => ResolveBranchContext::class,
@@ -31,7 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveBranchContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(PlatformPaymentSetting::CREDENTIAL_FIELDS);
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*', 'webhooks/mercado-pago/*') || $request->expectsJson(),
         );
     })->create();

@@ -15,3 +15,7 @@ Schedule::command('backup:database')
 Schedule::command('subscriptions:sync-invoices')
     ->dailyAt('00:10')
     ->withoutOverlapping(10);
+
+Schedule::command('subscriptions:reconcile-mercado-pago')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);

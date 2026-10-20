@@ -24,7 +24,8 @@ class StorePlatformInvoicePaymentRequest extends FormRequest
     {
         return [
             'paid_on' => ['required', 'date', 'before_or_equal:today'],
-            'payment_method' => ['required', Rule::in(['pix', 'money', 'credit_card', 'debit_card', 'bank_transfer', 'other'])],
+            'payment_method' => ['required', Rule::in(['pix'])],
+            'reactivate_access' => ['nullable', 'boolean'],
         ];
     }
 

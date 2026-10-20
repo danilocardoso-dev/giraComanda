@@ -3,6 +3,13 @@
 return [
     'establishment_name' => env('ESTABLISHMENT_NAME', 'GiraComanda'),
     'general_due_day' => (int) env('GENERAL_DUE_DAY', 10),
+    'subscription' => [
+        'monthly_amount_cents' => (int) env('SUBSCRIPTION_MONTHLY_AMOUNT_CENTS', 19700),
+        'trial_days' => (int) env('SUBSCRIPTION_TRIAL_DAYS', 7),
+        'pix_key' => env('SUBSCRIPTION_PIX_KEY'),
+        'pix_copy_paste' => env('SUBSCRIPTION_PIX_COPY_PASTE'),
+        'support_whatsapp' => env('SUBSCRIPTION_SUPPORT_WHATSAPP'),
+    ],
 
     'initial_admin' => [
         'name' => env('INITIAL_ADMIN_NAME', 'Administrador'),

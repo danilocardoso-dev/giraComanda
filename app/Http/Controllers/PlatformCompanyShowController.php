@@ -6,6 +6,8 @@ use App\Actions\BuildPlatformInvoiceWhatsAppUrl;
 use App\Actions\SynchronizeSubscriptionInvoices;
 use App\CompanyRole;
 use App\Models\Company;
+use App\Models\SubscriptionCheckout;
+use App\Models\SubscriptionGatewayPayment;
 use App\Models\Tab;
 use Illuminate\Contracts\View\View;
 
@@ -44,12 +46,9 @@ class PlatformCompanyShowController extends Controller
                 ->count(),
             'paymentMethods' => [
                 'pix' => 'PIX',
-                'money' => 'Dinheiro',
-                'credit_card' => 'Cartão de crédito',
-                'debit_card' => 'Cartão de débito',
-                'bank_transfer' => 'Transferência bancária',
-                'other' => 'Outro',
             ],
+            'gatewayCheckouts' => SubscriptionCheckout::query()->where('subscription_id', $subscription->id)->latest('id')->limit(15)->get(),
+            'gatewayPayments' => SubscriptionGatewayPayment::query()->whereHas('checkout', fn ($query) => $query->where('subscription_id', $subscription->id))->latest('id')->limit(20)->get(),
         ]);
     }
 }

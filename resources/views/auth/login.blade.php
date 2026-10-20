@@ -35,5 +35,6 @@
             Entrar no GiraComanda
         </button>
         <a href="{{ route('password.request') }}" class="block text-center text-sm font-semibold text-brand-700 hover:text-brand-900">Esqueci minha senha</a>
+        <p class="text-center text-sm text-slate-600">Ainda não usa o sistema? <a href="{{ route('trial.create') }}" class="font-bold text-brand-700 hover:text-brand-900">Teste grátis por {{ config('giracomanda.subscription.trial_days') }} dias</a></p>
     </form>
 @endsection

@@ -7,6 +7,7 @@ use App\CompanyRole;
 use App\Models\Company;
 use App\Models\User;
 use App\SubscriptionStatus;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -37,6 +38,7 @@ class PlatformCompanyControllerTest extends TestCase
 
     public function test_platform_admin_can_create_an_establishment_with_its_owner_and_first_branch(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 10:00:00'));
         $platformAdmin = User::factory()->platformAdmin()->create();
 
         $response = $this->actingAs($platformAdmin)->post(route('platform.companies.store'), [
@@ -74,7 +76,9 @@ class PlatformCompanyControllerTest extends TestCase
         $this->assertDatabaseHas('subscriptions', [
             'company_id' => $company->id,
             'status' => SubscriptionStatus::Trial->value,
+            'monthly_amount_cents' => 19700,
         ]);
+        $this->assertSame('2026-10-22', $company->subscription()->sole()->trial_ends_at->toDateString());
     }
 
     public function test_duplicate_owner_email_is_rejected(): void

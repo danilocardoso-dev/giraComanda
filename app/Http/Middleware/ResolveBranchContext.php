@@ -48,6 +48,12 @@ class ResolveBranchContext
                 ->orderBy('branches.name')
                 ->get();
 
+            if ($accessibleBranches->isEmpty() && $user->companyMemberships()->where('active', true)->exists()) {
+                $request->session()->forget('active_branch_id');
+
+                return redirect()->route('subscription.show');
+            }
+
             abort_if($accessibleBranches->isEmpty(), Response::HTTP_FORBIDDEN, 'Usuário sem acesso a uma filial ativa.');
 
             $branch = $accessibleBranches->firstWhere('id', (int) $request->session()->get('active_branch_id'));

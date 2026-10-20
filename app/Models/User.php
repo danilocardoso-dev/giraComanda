@@ -103,7 +103,19 @@ class User extends Authenticatable
                 ->where(function (Builder $query): void {
                     $query->whereDoesntHave('subscription')
                         ->orWhereHas('subscription', fn (Builder $query): Builder => $query
-                            ->whereIn('status', [SubscriptionStatus::Trial->value, SubscriptionStatus::Active->value]));
+                            ->where(function (Builder $query): void {
+                                $query->where(function (Builder $query): void {
+                                    $query->where('status', SubscriptionStatus::Active->value)
+                                        ->where(fn (Builder $query): Builder => $query->whereNull('paid_until')->orWhere('paid_until', '>', now()));
+                                })
+                                    ->orWhere(function (Builder $query): void {
+                                        $query->where('status', SubscriptionStatus::Trial->value)
+                                            ->where(function (Builder $query): void {
+                                                $query->whereNull('trial_ends_at')
+                                                    ->orWhereDate('trial_ends_at', '>=', today());
+                                            });
+                                    });
+                            }));
                 }))
             ->where(function (Builder $query) use ($adminCompanyIds, $branchIds): void {
                 $query->whereIn('company_id', $adminCompanyIds)

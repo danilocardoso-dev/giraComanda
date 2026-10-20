@@ -22,6 +22,7 @@
                 <a href="{{ route('platform.dashboard') }}" @class(['rounded-xl px-4 py-3 text-sm font-bold', 'bg-white text-slate-950' => request()->routeIs('platform.dashboard'), 'text-slate-300 hover:bg-white/10 hover:text-white' => ! request()->routeIs('platform.dashboard')])>Visão geral</a>
                 <a href="{{ route('platform.companies.index') }}" @class(['rounded-xl px-4 py-3 text-sm font-bold', 'bg-white text-slate-950' => request()->routeIs('platform.companies.*', 'platform.subscriptions.*', 'platform.invoices.*', 'platform.owners.*'), 'text-slate-300 hover:bg-white/10 hover:text-white' => ! request()->routeIs('platform.companies.*', 'platform.subscriptions.*', 'platform.invoices.*', 'platform.owners.*')])>Clientes e assinaturas</a>
                 <a href="{{ route('platform.backups.index') }}" @class(['rounded-xl px-4 py-3 text-sm font-bold', 'bg-white text-slate-950' => request()->routeIs('platform.backups.*'), 'text-slate-300 hover:bg-white/10 hover:text-white' => ! request()->routeIs('platform.backups.*')])>Backups</a>
+                <a href="{{ route('platform.payment-settings.edit') }}" @class(['rounded-xl px-4 py-3 text-sm font-bold', 'bg-white text-slate-950' => request()->routeIs('platform.payment-settings.*'), 'text-slate-300 hover:bg-white/10 hover:text-white' => ! request()->routeIs('platform.payment-settings.*')])>Configurações</a>
             </nav>
 
             <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -52,6 +53,7 @@
                                 <a class="rounded-lg px-3 py-2 hover:bg-slate-100" href="{{ route('platform.dashboard') }}">Visão geral</a>
                                 <a class="rounded-lg px-3 py-2 hover:bg-slate-100" href="{{ route('platform.companies.index') }}">Clientes e assinaturas</a>
                                 <a class="rounded-lg px-3 py-2 hover:bg-slate-100" href="{{ route('platform.backups.index') }}">Backups</a>
+                                <a class="rounded-lg px-3 py-2 hover:bg-slate-100" href="{{ route('platform.payment-settings.edit') }}">Configurações</a>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit" class="w-full rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50">Sair</button>

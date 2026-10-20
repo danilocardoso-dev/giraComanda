@@ -8,6 +8,14 @@
         $overdueInvoices = $invoices->filter(fn ($invoice) => $invoice->paid_at === null && $invoice->due_date->isBefore(today()));
         $nextInvoice = $invoices->filter(fn ($invoice) => $invoice->paid_at === null)->sortBy('due_date')->first();
         $statusLabel = $subscription->statusLabel();
+        $reviewLabels = [
+            'test_payment_not_applied' => 'Simulação confirmada, sem baixa real.',
+            'refund_or_chargeback' => 'Estorno ou contestação: revise o acesso e a mensalidade.',
+            'amount_currency_or_method_mismatch' => 'Valor, moeda ou forma de pagamento divergente.',
+            'invoice_already_paid_or_changed' => 'Mensalidade já paga ou alterada: confira possível pagamento em duplicidade.',
+            'conflicting_billing_cycle' => 'Já existe uma mensalidade na competência do pagamento.',
+            'access_kept_blocked_by_admin' => 'Pagamento registrado; bloqueio administrativo preservado.',
+        ];
     @endphp
 
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -15,7 +23,7 @@
             <a href="{{ route('platform.companies.index') }}" class="text-sm font-bold text-slate-500 hover:text-slate-950">← Todos os clientes</a>
             <div class="mt-3 flex flex-wrap items-center gap-3">
                 <h2 class="text-3xl font-black text-slate-950">{{ $company->name }}</h2>
-                <span @class(['rounded-full px-3 py-1 text-xs font-bold', 'bg-emerald-100 text-emerald-800' => $statusLabel === 'Em dia', 'bg-amber-100 text-amber-800' => $statusLabel === 'Em teste', 'bg-red-100 text-red-800' => in_array($statusLabel, ['Inadimplente', 'Suspenso'], true), 'bg-slate-200 text-slate-700' => $statusLabel === 'Cancelado'])>{{ $statusLabel }}</span>
+                <span @class(['rounded-full px-3 py-1 text-xs font-bold', 'bg-emerald-100 text-emerald-800' => $statusLabel === 'Em dia', 'bg-amber-100 text-amber-800' => $statusLabel === 'Em teste', 'bg-red-100 text-red-800' => in_array($statusLabel, ['Inadimplente', 'Suspenso', 'Teste encerrado'], true), 'bg-slate-200 text-slate-700' => $statusLabel === 'Cancelado'])>{{ $statusLabel }}</span>
             </div>
             <p class="mt-2 text-sm text-slate-600">Conta criada em {{ $company->created_at->format('d/m/Y') }} · {{ $company->branches->count() }} {{ $company->branches->count() === 1 ? 'filial' : 'filiais' }}</p>
         </div>
@@ -94,6 +102,33 @@
     </div>
 
     <section class="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <h3 class="text-lg font-black text-slate-950">Mercado Pago · pagamentos e recorrência</h3>
+        <p class="mt-2 text-sm leading-6 text-slate-600">{{ $subscription->paid_until ? 'Período pago até '.$subscription->paid_until->format('d/m/Y H:i').'.' : 'Acesso segue o status administrativo da assinatura.' }} Salvar o status Ativa no formulário acima concede liberação administrativa sem prazo. Para baixa manual, cancele antes qualquer recorrência de cartão. Suspender, cancelar ou mudar o valor da assinatura cancela a recorrência anterior no Mercado Pago.</p>
+        <div class="mt-5 grid gap-4 md:grid-cols-2">
+            @forelse ($gatewayCheckouts as $checkout)
+                <article class="rounded-xl border border-slate-200 p-4 text-sm">
+                    <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment }} · {{ $checkout->status }}</p>
+                    <p class="mt-2 break-all text-slate-600">ID: {{ $checkout->remote_id ?? 'Criação em verificação' }}</p>
+                    <div class="mt-3 flex flex-wrap gap-4">
+                        <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 font-bold text-brand-800 underline">Consultar Mercado Pago</button></form>
+                        @if ($checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['pending', 'in_process', 'creating'], true)))
+                            <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 font-bold text-red-700 underline">Cancelar {{ $checkout->kind === 'card' ? 'recorrência' : 'Pix' }}</button></form>
+                        @endif
+                    </div>
+                </article>
+            @empty
+                <p class="text-sm text-slate-500">Nenhum pagamento online iniciado.</p>
+            @endforelse
+        </div>
+        <p class="mt-4 text-sm text-slate-600">Estornos e contestações são sinalizados para revisão administrativa; não geram reembolso nem alteração automática das suas decisões de acesso.</p>
+        <div class="mt-5 divide-y divide-slate-100">
+            @foreach ($gatewayPayments as $payment)
+                <div class="py-3 text-sm"><p class="font-bold">{{ $payment->environment }} · Pagamento {{ $payment->remote_id }} · R$ {{ number_format($payment->amount_cents / 100, 2, ',', '.') }} · {{ $payment->status }}</p><p class="mt-1 {{ $payment->review_reason && $payment->review_reason !== 'test_payment_not_applied' ? 'text-red-700' : 'text-slate-600' }}">{{ $payment->review_reason ? ($reviewLabels[$payment->review_reason] ?? 'Revisão administrativa necessária.') : ($payment->applied_at ? 'Baixa automática confirmada.' : 'Ainda sem baixa automática.') }}</p></div>
+            @endforeach
+        </div>
+    </section>
+
+    <section class="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h3 class="text-lg font-black text-slate-950">Mensalidades</h3><p class="mt-1 text-sm text-slate-500">As cobranças são geradas automaticamente conforme o início e o dia de vencimento.</p></div><p class="text-sm font-bold text-slate-600">{{ $invoices->count() }} registros recentes</p></div>
 
         <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><strong>Cobrança automática ativa.</strong> Use o formulário abaixo somente para lançar uma mensalidade excepcional.</div>
@@ -125,10 +160,10 @@
                                         @else
                                             <span class="text-xs font-semibold text-slate-500">Cadastre o WhatsApp financeiro para cobrar</span>
                                         @endif
-                                        <details><summary class="cursor-pointer font-bold text-emerald-700">Registrar pagamento</summary><form method="POST" action="{{ route('platform.invoices.payments.store', [$company, $invoice]) }}" class="mt-3 grid min-w-56 gap-2">@csrf<input name="paid_on" type="date" value="{{ today()->toDateString() }}" required class="rounded-lg border border-slate-300 px-3 py-2"><select name="payment_method" required class="rounded-lg border border-slate-300 bg-white px-3 py-2">@foreach ($paymentMethods as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><button class="rounded-lg bg-emerald-700 px-3 py-2 font-bold text-white">Confirmar</button></form></details>
+                                        <details><summary class="cursor-pointer font-bold text-emerald-700">Registrar pagamento</summary><form method="POST" action="{{ route('platform.invoices.payments.store', [$company, $invoice]) }}" class="mt-3 grid min-w-56 gap-2">@csrf<input name="paid_on" type="date" value="{{ today()->toDateString() }}" required class="rounded-lg border border-slate-300 px-3 py-2"><select name="payment_method" required class="rounded-lg border border-slate-300 bg-white px-3 py-2">@foreach ($paymentMethods as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><label class="flex items-start gap-2 rounded-lg bg-emerald-50 p-2 text-xs font-semibold text-emerald-900"><input type="checkbox" name="reactivate_access" value="1" checked class="mt-0.5 size-4 rounded border-emerald-300 text-emerald-700">Reativar o acesso da empresa com esta baixa</label><button class="rounded-lg bg-emerald-700 px-3 py-2 font-bold text-white">Confirmar</button></form></details>
                                     </div>
                                 @else
-                                    <span class="text-xs text-slate-500">{{ $paymentMethods[$invoice->payment_method] ?? 'Pagamento registrado' }}</span>
+                                    <span class="text-xs text-slate-500">{{ $paymentMethods[$invoice->payment_method] ?? ($invoice->payment_method === 'credit_card' ? 'Cartão recorrente · Mercado Pago' : 'Pagamento registrado') }}</span>
                                 @endif
                             </td>
                         </tr>

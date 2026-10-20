@@ -16,6 +16,10 @@ class BranchContextController extends Controller
             ->orderBy('branches.name')
             ->get();
 
+        if ($branches->isEmpty() && $request->user()->companyMemberships()->where('active', true)->exists()) {
+            return redirect()->route('subscription.show');
+        }
+
         abort_if($branches->isEmpty(), 403, 'Usuário sem acesso a uma filial ativa.');
 
         if ($branches->count() === 1) {
