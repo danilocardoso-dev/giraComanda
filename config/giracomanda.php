@@ -5,7 +5,7 @@ return [
     'general_due_day' => (int) env('GENERAL_DUE_DAY', 10),
     'subscription' => [
         'monthly_amount_cents' => (int) env('SUBSCRIPTION_MONTHLY_AMOUNT_CENTS', 19700),
-        'allow_test_settle' => (bool) env('SUBSCRIPTION_ALLOW_TEST_SETTLE', false),
+        'allow_test_settle' => (bool) env('SUBSCRIPTION_ALLOW_TEST_SETTLE', true),
         'trial_days' => (int) env('SUBSCRIPTION_TRIAL_DAYS', 7),
         'pix_key' => env('SUBSCRIPTION_PIX_KEY'),
         'pix_copy_paste' => env('SUBSCRIPTION_PIX_COPY_PASTE'),

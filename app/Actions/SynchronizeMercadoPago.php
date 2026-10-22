@@ -199,7 +199,7 @@ class SynchronizeMercadoPago
             $invoice = SubscriptionInvoice::query()->lockForUpdate()->findOrFail($checkout->subscription_invoice_id);
 
             if ($checkout->kind === 'card') {
-                $cycleDate = Carbon::parse($debitDate ?? throw new RuntimeException('Competência da cobrança ausente.'));
+                $cycleDate = Carbon::parse($debitDate ?? $data['date_approved'] ?? $data['date_created'] ?? now());
                 if ($subscription->status !== SubscriptionStatus::Trial && ! $invoice->reference_month->isSameMonth($cycleDate)) {
                     $invoice = $subscription->invoices()->firstOrCreate(['reference_month' => $cycleDate->copy()->startOfMonth()->toDateString()], [
                         'due_date' => $cycleDate->toDateString(), 'amount_cents' => $checkout->amount_cents,
