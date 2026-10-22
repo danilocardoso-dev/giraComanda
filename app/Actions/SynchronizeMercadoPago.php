@@ -41,7 +41,7 @@ class SynchronizeMercadoPago
             $deadline = microtime(true) + 35;
             $offset = (int) $checkout->reconciliation_offset;
             $page = $this->client->request($checkout->environment, 'GET', '/authorized_payments/search', [
-                'preapproval_id' => $checkout->remote_id, 'limit' => 20, 'offset' => $offset,
+                'preapproval_id' => $checkout->remote_id,
             ]);
             if (! isset($page['results']) || ! is_array($page['results'])) {
                 throw new RuntimeException('O Mercado Pago retornou uma consulta de pagamentos incompleta. Nenhum resultado de pagamento pôde ser confirmado.');

@@ -90,7 +90,7 @@ class CreateSubscriptionCheckout
                         'description' => 'Mensalidade GiraComanda', 'payment_method_id' => 'pix',
                         'payer' => ['email' => $checkout->payer_email], 'external_reference' => $checkout->uuid,
                         'notification_url' => $this->client->webhookUrl($checkout->environment),
-                        'date_of_expiration' => $checkout->expires_at->toIso8601String(),
+                        'date_of_expiration' => $checkout->expires_at->format('Y-m-d\TH:i:s.000P'),
                     ], $checkout->uuid);
                     if (blank($data['id'] ?? null) || blank(data_get($data, 'point_of_interaction.transaction_data.qr_code'))) {
                         throw new RuntimeException('O Mercado Pago ainda não disponibilizou o QR Code. Consulte novamente.');
