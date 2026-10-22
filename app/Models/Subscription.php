@@ -10,11 +10,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['company_id', 'status', 'monthly_amount_cents', 'billing_day', 'billing_phone', 'started_at', 'trial_ends_at', 'notes', 'paid_until', 'manual_access_override'])]
+#[Fillable(['company_id', 'status', 'billing_cycle', 'monthly_amount_cents', 'yearly_amount_cents', 'billing_day', 'billing_phone', 'started_at', 'trial_ends_at', 'notes', 'paid_until', 'manual_access_override'])]
 class Subscription extends Model
 {
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
+
+    public function yearlyAmountCents(): int
+    {
+        return $this->yearly_amount_cents ?? config('giracomanda.subscription.yearly_amount_cents', 197000);
+    }
 
     public function company(): BelongsTo
     {
@@ -75,6 +80,7 @@ class Subscription extends Model
         return [
             'status' => SubscriptionStatus::class,
             'monthly_amount_cents' => 'integer',
+            'yearly_amount_cents' => 'integer',
             'billing_day' => 'integer',
             'started_at' => 'date',
             'trial_ends_at' => 'date',

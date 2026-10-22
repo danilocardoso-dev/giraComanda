@@ -31,8 +31,12 @@ class SynchronizeSubscriptionInvoices
             if ($subscription->paid_until->greaterThanOrEqualTo($cutoff) || $subscription->invoices()->whereNull('paid_at')->exists()) {
                 return 0;
             }
+            $targetAmount = $subscription->billing_cycle === 'yearly'
+                ? $subscription->yearlyAmountCents()
+                : $subscription->monthly_amount_cents;
+
             $invoice = $subscription->invoices()->firstOrCreate(['reference_month' => $cutoff->startOfMonth()->toDateString()], [
-                'due_date' => $cutoff->toDateString(), 'amount_cents' => $subscription->monthly_amount_cents,
+                'due_date' => $cutoff->toDateString(), 'amount_cents' => $targetAmount,
                 'generated_automatically' => true, 'notes' => 'Renovação após o período pago. Sem acumular meses de acesso bloqueado.',
             ]);
 

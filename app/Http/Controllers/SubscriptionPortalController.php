@@ -96,6 +96,8 @@ class SubscriptionPortalController extends Controller
             'company' => $company,
             'subscription' => $subscription,
             'openInvoice' => $openInvoice,
+            'monthlyAmountCents' => $subscription?->monthly_amount_cents ?? (int) config('giracomanda.subscription.monthly_amount_cents', 19700),
+            'yearlyAmountCents' => $subscription?->yearlyAmountCents() ?? (int) config('giracomanda.subscription.yearly_amount_cents', 197000),
             'pixKey' => $pixKey !== '' ? $pixKey : null,
             'pixCopyPaste' => $pixCopyPaste !== '' ? $pixCopyPaste : null,
             'pixQrCodeDataUri' => $pixCopyPaste !== '' ? $buildSubscriptionPixQrCode($pixCopyPaste) : null,

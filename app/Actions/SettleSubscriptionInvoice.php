@@ -10,7 +10,7 @@ use Carbon\CarbonInterface;
 class SettleSubscriptionInvoice
 {
     /** Caller must hold the subscription and invoice row locks inside a transaction. */
-    public function handle(Subscription $subscription, SubscriptionInvoice $invoice, CarbonInterface $paidAt, string $method, bool $reactivate, bool $automatic = false): void
+    public function handle(Subscription $subscription, SubscriptionInvoice $invoice, CarbonInterface $paidAt, string $method, bool $reactivate, bool $automatic = false, ?string $billingCycle = null): void
     {
         $invoice->update(['paid_at' => $paidAt, 'payment_method' => $method]);
 
@@ -21,6 +21,8 @@ class SettleSubscriptionInvoice
             return;
         }
 
+        $billingCycle ??= $subscription->billing_cycle ?? 'monthly';
+
         $wasTrial = $subscription->status === SubscriptionStatus::Trial;
         if ($wasTrial && $automatic && $invoice->generated_automatically
             && ! $invoice->reference_month->isSameMonth($paidAt)) {
@@ -30,9 +32,14 @@ class SettleSubscriptionInvoice
         if ($subscription->paid_until?->gt($periodStart)) {
             $periodStart = $subscription->paid_until->copy();
         }
-        $periodEnd = $periodStart->copy()->addMonthNoOverflow()->endOfDay();
+        $periodEnd = $billingCycle === 'yearly'
+            ? $periodStart->copy()->addYearNoOverflow()->endOfDay()
+            : $periodStart->copy()->addMonthNoOverflow()->endOfDay();
+
         $subscription->update([
-            'status' => SubscriptionStatus::Active, 'trial_ends_at' => null,
+            'status' => SubscriptionStatus::Active,
+            'billing_cycle' => $billingCycle,
+            'trial_ends_at' => null,
             'paid_until' => $automatic || $subscription->paid_until !== null
                 ? ($subscription->paid_until?->gt($periodEnd) ? $subscription->paid_until : $periodEnd) : null,
             ...($wasTrial ? ['started_at' => $periodStart->toDateString(), 'billing_day' => min($periodStart->day, 28)] : []),

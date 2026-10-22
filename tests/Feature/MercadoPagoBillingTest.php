@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\SynchronizeMercadoPago;
 use App\Actions\SynchronizeSubscriptionInvoices;
 use App\CompanyRole;
 use App\Models\Branch;
@@ -885,6 +886,90 @@ class MercadoPagoBillingTest extends TestCase
             ->assertJson(['received' => true]);
 
         $this->assertNotNull($invoice->refresh()->paid_at);
+    }
+
+    public function test_owner_can_subscribe_yearly_and_directly_during_trial(): void
+    {
+        $this->settings();
+        [$owner, $subscription] = $this->customer();
+        $subscription->update(['trial_ends_at' => today()->addDays(5), 'status' => SubscriptionStatus::Trial]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.mercadopago.com/preapproval' => Http::response([
+                'id' => 'rec-annual-123',
+                'status' => 'pending',
+                'init_point' => 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=rec-annual-123',
+            ], 201),
+        ]);
+
+        $this->actingAs($owner)->post(route('subscription.checkouts.store'), [
+            'kind' => 'card',
+            'billing_cycle' => 'yearly',
+            'payer_email' => 'buyer@example.com',
+            'recurring_consent' => '1',
+        ])->assertRedirect('https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=rec-annual-123');
+
+        $checkout = SubscriptionCheckout::query()->where('remote_id', 'rec-annual-123')->firstOrFail();
+        $this->assertSame('yearly', $checkout->billing_cycle);
+        $this->assertSame(197000, $checkout->amount_cents);
+
+        Http::assertSent(function (ClientRequest $request) use ($checkout): bool {
+            return (int) $request['auto_recurring']['frequency'] === 12
+                && $request['auto_recurring']['frequency_type'] === 'months'
+                && (int) $request['auto_recurring']['transaction_amount'] === 1970
+                && $request['external_reference'] === $checkout->uuid;
+        });
+    }
+
+    public function test_yearly_subscription_settles_and_extends_access_by_one_year(): void
+    {
+        $this->settings();
+        [$owner, $subscription, $invoice] = $this->customer();
+        $invoice->update(['amount_cents' => 197000]);
+        $checkout = SubscriptionCheckout::factory()->create([
+            'subscription_id' => $subscription->id,
+            'subscription_invoice_id' => $invoice->id,
+            'kind' => 'card',
+            'billing_cycle' => 'yearly',
+            'status' => 'authorized',
+            'remote_id' => 'rec-annual-123',
+            'environment' => 'production',
+            'amount_cents' => 197000,
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.mercadopago.com/preapproval/rec-annual-123' => Http::response([
+                'id' => 'rec-annual-123',
+                'external_reference' => $checkout->uuid,
+                'status' => 'authorized',
+                'auto_recurring' => ['frequency' => 12, 'frequency_type' => 'months', 'currency_id' => 'BRL', 'transaction_amount' => 1970],
+            ]),
+            'api.mercadopago.com/authorized_payments/auth-123' => Http::response([
+                'id' => 'auth-123',
+                'preapproval_id' => 'rec-annual-123',
+                'payment' => ['id' => 99999],
+                'external_reference' => $checkout->uuid,
+            ]),
+            'api.mercadopago.com/v1/payments/99999' => Http::response([
+                'id' => 99999,
+                'external_reference' => $checkout->uuid,
+                'live_mode' => true,
+                'status' => 'approved',
+                'transaction_amount' => 1970,
+                'currency_id' => 'BRL',
+                'payment_type_id' => 'credit_card',
+                'date_approved' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        app(SynchronizeMercadoPago::class)->authorizedPayment('production', 'auth-123');
+
+        $subscription->refresh();
+        $this->assertSame('yearly', $subscription->billing_cycle);
+        $this->assertSame(SubscriptionStatus::Active, $subscription->status);
+        $this->assertTrue($subscription->paid_until->isFuture());
+        $this->assertGreaterThan(300, now()->diffInDays($subscription->paid_until));
     }
 
     private function customer(): array

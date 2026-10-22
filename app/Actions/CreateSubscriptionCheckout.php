@@ -17,9 +17,9 @@ class CreateSubscriptionCheckout
 {
     public function __construct(private MercadoPagoClient $client, private SynchronizeSubscriptionInvoices $invoices, private SynchronizeMercadoPago $synchronize) {}
 
-    public function handle(Subscription $subscription, string $kind, string $email): SubscriptionCheckout
+    public function handle(Subscription $subscription, string $kind, string $email, string $billingCycle = 'monthly'): SubscriptionCheckout
     {
-        return Cache::lock('subscription-checkout-'.$subscription->id, 90)->block(3, function () use ($subscription, $kind, $email): SubscriptionCheckout {
+        return Cache::lock('subscription-checkout-'.$subscription->id, 90)->block(3, function () use ($subscription, $kind, $email, $billingCycle): SubscriptionCheckout {
             $subscription->refresh();
             $settings = PlatformPaymentSetting::query()->where('provider', PlatformPaymentSetting::PROVIDER)->first();
 
@@ -29,19 +29,37 @@ class CreateSubscriptionCheckout
 
             if (! in_array($kind, ['pix', 'card'], true) || ! $subscription->company->active
                 || in_array($subscription->status, [SubscriptionStatus::Suspended, SubscriptionStatus::Cancelled], true)
-                || $subscription->isTrialActive()) {
+                || ($kind === 'pix' && $subscription->isTrialActive())) {
                 throw ValidationException::withMessages(['payment' => 'Não é possível iniciar uma cobrança nesta situação. Fale com o atendimento.']);
             }
 
             $this->invoices->handle($subscription);
+
+            $targetAmount = ($kind === 'card' && $billingCycle === 'yearly')
+                ? $subscription->yearlyAmountCents()
+                : $subscription->monthly_amount_cents;
+
             $invoice = $subscription->invoices()->whereNull('paid_at')->orderBy('due_date')->orderBy('id')->first();
 
-            if ($invoice === null || $invoice->amount_cents <= 0 || $invoice->due_date->isFuture()) {
+            if ($kind === 'card' && $invoice === null) {
+                $referenceMonth = now()->startOfMonth()->toDateString();
+                $invoice = $subscription->invoices()->create([
+                    'reference_month' => $referenceMonth,
+                    'due_date' => today()->toDateString(),
+                    'amount_cents' => $targetAmount,
+                    'notes' => $billingCycle === 'yearly' ? 'Assinatura plano anual antecipada.' : 'Assinatura plano mensal antecipada.',
+                    'generated_automatically' => true,
+                ]);
+            }
+
+            if ($invoice === null || $invoice->amount_cents <= 0 || ($kind === 'pix' && $invoice->due_date->isFuture())) {
                 throw ValidationException::withMessages(['payment' => 'Não há mensalidade vencendo disponível para pagamento.']);
             }
-            if ($kind === 'card' && $invoice->amount_cents !== $subscription->monthly_amount_cents) {
-                throw ValidationException::withMessages(['payment' => 'A mensalidade tem um valor excepcional. Pague por Pix ou fale com o atendimento.']);
+
+            if ($kind === 'card' && $invoice->amount_cents !== $targetAmount) {
+                $invoice->update(['amount_cents' => $targetAmount]);
             }
+
             if ($kind === 'card' && SubscriptionCheckout::query()->where('subscription_id', $subscription->id)->where('kind', 'pix')
                 ->whereIn('status', ['creating', 'pending', 'in_process'])->exists()) {
                 throw ValidationException::withMessages(['payment' => 'Consulte e cancele o Pix pendente antes de iniciar a recorrência.']);
@@ -76,9 +94,14 @@ class CreateSubscriptionCheckout
             }
 
             $checkout ??= SubscriptionCheckout::query()->create([
-                'subscription_id' => $subscription->id, 'subscription_invoice_id' => $invoice->id,
-                'uuid' => (string) Str::uuid(), 'environment' => $settings->environment,
-                'kind' => $kind, 'status' => 'creating', 'amount_cents' => $invoice->amount_cents,
+                'subscription_id' => $subscription->id,
+                'subscription_invoice_id' => $invoice->id,
+                'uuid' => (string) Str::uuid(),
+                'environment' => $settings->environment,
+                'kind' => $kind,
+                'billing_cycle' => $kind === 'card' ? $billingCycle : 'monthly',
+                'status' => 'creating',
+                'amount_cents' => $invoice->amount_cents,
                 'payer_email' => $email,
                 'expires_at' => $kind === 'pix' ? now()->addDay() : null,
             ]);
@@ -87,8 +110,10 @@ class CreateSubscriptionCheckout
                 if ($kind === 'pix') {
                     $data = $this->client->request($checkout->environment, 'POST', '/v1/payments', [
                         'transaction_amount' => $checkout->amount_cents / 100,
-                        'description' => 'Mensalidade GiraComanda', 'payment_method_id' => 'pix',
-                        'payer' => ['email' => $checkout->payer_email], 'external_reference' => $checkout->uuid,
+                        'description' => 'Mensalidade GiraComanda',
+                        'payment_method_id' => 'pix',
+                        'payer' => ['email' => $checkout->payer_email],
+                        'external_reference' => $checkout->uuid,
                         'notification_url' => $this->client->webhookUrl($checkout->environment),
                         'date_of_expiration' => $checkout->expires_at->format('Y-m-d\TH:i:s.000P'),
                     ], $checkout->uuid);
@@ -96,7 +121,8 @@ class CreateSubscriptionCheckout
                         throw new RuntimeException('O Mercado Pago ainda não disponibilizou o QR Code. Consulte novamente.');
                     }
                     $checkout->update([
-                        'remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
+                        'remote_id' => (string) $data['id'],
+                        'status' => $data['status'] ?? 'pending',
                         'pix_code' => data_get($data, 'point_of_interaction.transaction_data.qr_code'),
                         'expires_at' => $data['date_of_expiration'] ?? $checkout->expires_at,
                     ]);
@@ -110,10 +136,19 @@ class CreateSubscriptionCheckout
 
                         return $checkout;
                     } else {
+                        $frequency = $billingCycle === 'yearly' ? 12 : 1;
+                        $reason = $billingCycle === 'yearly' ? 'GiraComanda — Assinatura Anual' : 'GiraComanda — Assinatura Mensal';
+
                         $data = $this->client->request($checkout->environment, 'POST', '/preapproval', [
-                            'reason' => 'GiraComanda — assinatura mensal', 'external_reference' => $checkout->uuid,
+                            'reason' => $reason,
+                            'external_reference' => $checkout->uuid,
                             'payer_email' => $checkout->payer_email,
-                            'auto_recurring' => ['frequency' => 1, 'frequency_type' => 'months', 'transaction_amount' => $checkout->amount_cents / 100, 'currency_id' => 'BRL'],
+                            'auto_recurring' => [
+                                'frequency' => $frequency,
+                                'frequency_type' => 'months',
+                                'transaction_amount' => $checkout->amount_cents / 100,
+                                'currency_id' => 'BRL',
+                            ],
                             'back_url' => rtrim(config('app.url'), '/').route('subscription.show', [], false),
                             'status' => 'pending',
                         ]);
@@ -121,13 +156,18 @@ class CreateSubscriptionCheckout
                     if (blank($data['id'] ?? null)) {
                         throw new RuntimeException('A recorrência está em verificação. Tente consultar novamente.');
                     }
-                    $checkout->update(['remote_id' => (string) $data['id'], 'status' => $data['status'] ?? 'pending',
-                        'checkout_url' => $this->client->checkoutUrl($data['init_point'] ?? '')]);
+                    $checkout->update([
+                        'remote_id' => (string) $data['id'],
+                        'status' => $data['status'] ?? 'pending',
+                        'checkout_url' => $this->client->checkoutUrl($data['init_point'] ?? ''),
+                    ]);
                 }
             } catch (MercadoPagoApiException $exception) {
                 $checkout->update([
                     'status' => $checkout->wasRecentlyCreated && $exception->isDefinitiveRejection() ? 'rejected' : $checkout->status,
-                    'failure_http_status' => $exception->httpStatus, 'failure_message' => $exception->getMessage(), 'failed_at' => now(),
+                    'failure_http_status' => $exception->httpStatus,
+                    'failure_message' => $exception->getMessage(),
+                    'failed_at' => now(),
                 ]);
                 throw $exception;
             }

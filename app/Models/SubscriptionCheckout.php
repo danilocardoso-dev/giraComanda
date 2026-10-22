@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['subscription_id', 'subscription_invoice_id', 'uuid', 'environment', 'kind', 'status', 'remote_id', 'amount_cents', 'payer_email', 'checkout_url', 'pix_code', 'expires_at', 'last_synced_at', 'cancelled_at', 'reconciliation_offset', 'failure_message', 'failure_http_status', 'failed_at', 'last_attempted_at'])]
+#[Fillable(['subscription_id', 'subscription_invoice_id', 'uuid', 'environment', 'kind', 'billing_cycle', 'status', 'remote_id', 'amount_cents', 'payer_email', 'checkout_url', 'pix_code', 'expires_at', 'last_synced_at', 'cancelled_at', 'reconciliation_offset', 'failure_message', 'failure_http_status', 'failed_at', 'last_attempted_at'])]
 #[Hidden(['payer_email'])]
 class SubscriptionCheckout extends Model
 {

@@ -9,7 +9,7 @@
 </head>
 <body class="min-h-screen bg-brand-950 text-white">
     <main class="mx-auto flex min-h-screen max-w-6xl items-center px-5 py-12 sm:px-8">
-        <div class="grid w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl lg:grid-cols-[1fr_0.8fr]">
+        <div class="grid w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl lg:grid-cols-[1fr_0.9fr]">
             <section class="p-7 sm:p-10 lg:p-14">
                 <div class="flex items-center gap-3">
                     <div class="grid size-11 place-items-center rounded-2xl bg-warm-500 text-lg font-black text-brand-950">G</div>
@@ -19,13 +19,13 @@
                 <p class="mt-12 text-sm font-bold uppercase tracking-[0.2em] text-warm-400">Assinatura da {{ $company->name }}</p>
                 @if ($subscription?->isTrialExpired())
                     <h1 class="mt-4 max-w-xl text-4xl font-bold leading-tight sm:text-5xl">Seu período gratuito terminou.</h1>
-                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Seus dados continuam preservados. Escolha uma forma de pagamento para continuar usando a operação.</p>
+                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Seus dados continuam preservados. Escolha um plano para continuar usando o sistema sem interrupções.</p>
                 @elseif ($subscription?->allowsAccess())
                     <h1 class="mt-4 max-w-xl text-4xl font-bold leading-tight sm:text-5xl">Sua assinatura está liberada.</h1>
-                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Você pode voltar ao sistema ou consultar as condições do plano.</p>
+                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Você tem acesso completo a todas as funcionalidades do GiraComanda.</p>
                 @else
                     <h1 class="mt-4 max-w-xl text-4xl font-bold leading-tight sm:text-5xl">Seu acesso precisa de atenção.</h1>
-                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Regularize a mensalidade ou fale com o atendimento para revisar sua situação.</p>
+                    <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Regularize sua assinatura ou fale com o suporte para revisar sua situação.</p>
                 @endif
 
                 <div class="mt-9 flex flex-wrap gap-3">
@@ -39,55 +39,73 @@
             <aside class="bg-white p-7 text-slate-900 sm:p-10 lg:p-12">
                 <x-flash-message />
                 @if ($errors->any())<div role="alert" class="mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-800">@foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
-                <p class="text-sm font-black uppercase tracking-[0.18em] text-brand-700">Plano GiraComanda</p>
-                <div class="mt-4 flex items-end gap-2"><span class="text-5xl font-black">R$ {{ number_format(($subscription?->monthly_amount_cents ?? config('giracomanda.subscription.monthly_amount_cents')) / 100, 0, ',', '.') }}</span><span class="pb-1 text-slate-500">/mês</span></div>
-                <p class="mt-4 leading-7 text-slate-600">Comandas por QR Code, rateio, fiado detalhado, caixa, estoque, relatórios e gestão de filiais.</p>
+                <p class="text-sm font-black uppercase tracking-[0.18em] text-brand-700">Planos de Assinatura</p>
+                <p class="mt-2 text-sm text-slate-600">Comandas digitais, cardápio QR Code, divisão de contas, fiado detalhado, controle de caixa, estoque e relatórios completos.</p>
 
-                <div class="mt-8 grid gap-3">
+                <div class="mt-6 grid gap-4">
                     @if ($subscription?->paid_until)
-                        <p class="text-sm font-semibold text-brand-800">Período pago até {{ $subscription->paid_until->format('d/m/Y H:i') }}.</p>
-                    @endif
-                    @if ($onlinePaymentsEnabled && $paymentEnvironment === 'test')
-                        <p class="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-900">Ambiente de teste. Use somente contas e cartões de teste do Mercado Pago. Pagamentos simulados não quitam mensalidades nem liberam acesso real.</p>
-                    @endif
-                    @if ($canManageBilling && $onlinePaymentsEnabled && $openInvoice && ! $recurrence && ! $subscription?->isTrialActive())
-                        <form method="POST" action="{{ route('subscription.checkouts.store') }}" class="grid gap-4 rounded-2xl border border-brand-200 bg-brand-50 p-5">
-                            @csrf
-                            <p class="font-black text-brand-950">Escolha como continuar</p>
-                            <div><label for="payer_email" class="text-sm font-bold text-slate-700">E-mail do pagador no Mercado Pago</label><input id="payer_email" name="payer_email" type="email" required maxlength="254" value="{{ old('payer_email', $paymentEnvironment === 'test' ? '' : auth()->user()->email) }}" aria-describedby="payer-email-help" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950"><p id="payer-email-help" class="mt-2 text-sm leading-6 text-slate-600">{{ $paymentEnvironment === 'test' ? 'Informe o e-mail da conta COMPRADORA de teste do Mercado Pago, não o login do GiraComanda. Comprador e vendedor precisam pertencer a ambientes compatíveis.' : 'Informe o e-mail da conta que autorizará o pagamento no Mercado Pago.' }}</p></div>
-                            <button name="kind" value="pix" class="rounded-xl bg-brand-800 px-5 py-3.5 font-bold text-white hover:bg-brand-900">Gerar Pix desta mensalidade</button>
-                            <label class="flex items-start gap-2 text-sm leading-6 text-slate-700"><input type="checkbox" name="recurring_consent" value="1" class="mt-1 size-4 shrink-0 accent-brand-700">Autorizo a assinatura mensal recorrente de R$ {{ number_format($subscription->monthly_amount_cents / 100, 2, ',', '.') }}, até o cancelamento. A confirmação do cartão acontece no Mercado Pago.</label>
-                            <button name="kind" value="card" class="rounded-xl bg-warm-500 px-5 py-3.5 font-black text-brand-950 hover:bg-warm-400">Assinar com cartão</button>
-                            <p class="text-xs leading-5 text-slate-600">O Pix não tem renovação automática. Para trocar do cartão para Pix, cancele primeiro a recorrência. O retorno do checkout não confirma pagamento.</p>
-                        </form>
-                    @endif
-                    @if ($canManageBilling)
-                        @if ($failedCheckout && ! $subscription?->allowsAccess())
-                            <div role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-900"><p class="font-bold">{{ $failedCheckout->statusLabel() }}{{ $failedCheckout->failure_http_status ? ' · HTTP '.$failedCheckout->failure_http_status : '' }}</p><p class="mt-2">{{ $failedCheckout->failure_message }}</p><p class="mt-2">{{ $failedCheckout->status === 'rejected' ? 'Esta tentativa não confirma assinatura nem pagamento. Corrija o motivo indicado e tente novamente no formulário.' : 'O resultado da criação ainda é desconhecido. Uma consulta sem resultado não confirma pagamento nem cancelamento.' }}</p></div>
-                        @endif
-                        @foreach ($checkouts->filter(fn ($checkout) => $checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['creating', 'pending', 'in_process'], true))) as $checkout)
-                            <div class="grid gap-3 rounded-2xl border border-slate-200 p-5">
-                                <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment === 'test' ? 'Teste' : 'Produção' }}</p>
-                                <p class="text-sm text-slate-600">Situação: {{ $checkout->statusLabel() }}</p>
-                                @if (! $checkout->remote_id)<p class="text-sm leading-6 text-amber-900">Não há um ID de cobrança ou assinatura confirmado para esta tentativa. Encerrar a tentativa abaixo é uma ação local, não um cancelamento confirmado no Mercado Pago.</p>@endif
-                                @if ($checkout->kind === 'card' && $checkout->status === 'pending' && $checkout->checkout_url)<a href="{{ $checkout->checkout_url }}" class="font-bold text-brand-800 underline">Continuar no Mercado Pago</a>@endif
-                                <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 text-sm font-bold text-brand-800 underline">Consultar no Mercado Pago</button></form>
-                                <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 text-sm font-bold text-red-700 underline">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : ($checkout->kind === 'card' ? 'Cancelar próximas cobranças' : 'Cancelar este Pix') }}</button></form>
-                                @if ($checkout->expires_at)<p class="text-xs text-slate-500">QR Code válido até {{ $checkout->expires_at->format('d/m/Y H:i') }}. Após expirar, consulte e cancele antes de gerar outro.</p>@endif
-                            </div>
-                        @endforeach
-                    @endif
-                    @if ($openInvoice)
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Mensalidade em aberto</p>
-                            <p class="mt-2 text-3xl font-black text-slate-950">R$ {{ number_format($openInvoice->amount_cents / 100, 2, ',', '.') }}</p>
-                            <p class="mt-1 text-sm text-slate-600">Vencimento em {{ $openInvoice->due_date->format('d/m/Y') }}</p>
+                        <div class="rounded-2xl border border-brand-200 bg-brand-50 p-4 text-sm font-semibold text-brand-900">
+                            Período contratado em vigor até <strong>{{ $subscription->paid_until->format('d/m/Y H:i') }}</strong>.
                         </div>
                     @endif
 
-                    @if ($openInvoice && ($pixKey || $pixCopyPaste))
+                    @if ($onlinePaymentsEnabled && $paymentEnvironment === 'test')
+                        <p class="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-900">Ambiente de teste ativo. Utilize dados e cartões de teste do Mercado Pago.</p>
+                    @endif
+
+                    @if ($canManageBilling && $onlinePaymentsEnabled && ! $recurrence)
+                        <form method="POST" action="{{ route('subscription.checkouts.store') }}" class="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            @csrf
+                            <input type="hidden" name="kind" value="card">
+                            <p class="font-black text-slate-950">Selecione seu plano</p>
+
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <label class="relative flex cursor-pointer flex-col justify-between rounded-xl border-2 border-slate-200 bg-white p-4 transition-all hover:border-brand-500 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50/30">
+                                    <div class="flex items-start justify-between">
+                                        <span class="text-xs font-black uppercase tracking-wider text-slate-600">Mensal</span>
+                                        <input type="radio" name="billing_cycle" value="monthly" checked class="size-4 text-brand-600 focus:ring-brand-500">
+                                    </div>
+                                    <div class="mt-3">
+                                        <p class="text-2xl font-black text-slate-950">R$ {{ number_format($monthlyAmountCents / 100, 2, ',', '.') }}</p>
+                                        <p class="text-xs text-slate-500">por mês</p>
+                                    </div>
+                                    <p class="mt-2 text-xs text-slate-600">Cobrança recorrente a cada 30 dias</p>
+                                </label>
+
+                                <label class="relative flex cursor-pointer flex-col justify-between rounded-xl border-2 border-brand-500 bg-white p-4 shadow-sm transition-all hover:border-brand-600 has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50/40">
+                                    <span class="absolute -top-2.5 right-3 rounded-full bg-emerald-700 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">2 meses grátis</span>
+                                    <div class="flex items-start justify-between">
+                                        <span class="text-xs font-black uppercase tracking-wider text-brand-900">Anual</span>
+                                        <input type="radio" name="billing_cycle" value="yearly" class="size-4 text-brand-600 focus:ring-brand-500">
+                                    </div>
+                                    <div class="mt-3">
+                                        <p class="text-2xl font-black text-slate-950">R$ {{ number_format($yearlyAmountCents / 100, 2, ',', '.') }}</p>
+                                        <p class="text-xs font-bold text-emerald-800">~R$ {{ number_format($yearlyAmountCents / 1200, 2, ',', '.') }}/mês</p>
+                                    </div>
+                                    <p class="mt-2 text-xs text-slate-600">Cobrança única anual recorrente</p>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label for="payer_email" class="text-sm font-bold text-slate-700">E-mail do titular no Mercado Pago</label>
+                                <input id="payer_email" name="payer_email" type="email" required maxlength="254" value="{{ old('payer_email', $paymentEnvironment === 'test' ? '' : auth()->user()->email) }}" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-950 focus:border-brand-500 focus:ring-brand-500">
+                                <p class="mt-1 text-xs text-slate-500">{{ $paymentEnvironment === 'test' ? 'Conta compradora de teste do Mercado Pago.' : 'E-mail da sua conta Mercado Pago onde o cartão será registrado.' }}</p>
+                            </div>
+
+                            <label class="flex items-start gap-2.5 text-xs leading-5 text-slate-700">
+                                <input type="checkbox" name="recurring_consent" value="1" required class="mt-0.5 size-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                <span>Autorizo a assinatura recorrente com cartão de crédito no Mercado Pago conforme o plano escolhido, renovável até o cancelamento.</span>
+                            </label>
+
+                            <button type="submit" class="w-full rounded-xl bg-warm-500 px-5 py-3.5 text-center font-black text-brand-950 shadow-md transition-colors hover:bg-warm-400">
+                                Assinar com cartão
+                            </button>
+                        </form>
+                    @endif
+
+                    @if ($dynamicPix && ($pixKey || $pixCopyPaste))
                         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                            <p class="font-black text-emerald-900">Pague com PIX</p>
+                            <p class="font-black text-emerald-900">Pix em andamento</p>
                             @if ($pixQrCodeDataUri)
                                 <img src="{{ $pixQrCodeDataUri }}" alt="QR Code PIX da mensalidade do GiraComanda" class="mx-auto mt-4 size-52 rounded-2xl bg-white p-3 shadow-sm">
                                 <p class="mt-3 text-center text-xs font-bold text-emerald-800">Escaneie o QR Code pelo aplicativo do seu banco.</p>
@@ -99,30 +117,57 @@
                                 <button type="button" data-copy-text="{{ $pixCopyPaste }}" class="mt-4 w-full rounded-xl bg-emerald-800 px-4 py-3 text-sm font-black text-white hover:bg-emerald-900">Copiar PIX copia e cola</button>
                                 <p data-copy-feedback class="mt-2 hidden text-center text-xs font-bold text-emerald-800">Código PIX copiado.</p>
                             @endif
-                            <p class="mt-4 text-sm leading-6 text-emerald-800">{{ $dynamicPix ? 'A confirmação depende do Mercado Pago. Após pagar, clique em “Consultar no Mercado Pago”.' : 'Depois do pagamento, envie o comprovante para a confirmação e liberação do acesso.' }}</p>
+                            <p class="mt-4 text-sm leading-6 text-emerald-800">A confirmação depende do Mercado Pago. Após pagar, clique em “Consultar no Mercado Pago”.</p>
                         </div>
                     @endif
 
-                    @if (! $openInvoice && $subscription?->allowsAccess())
-                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
-                            <p class="font-black">Nenhuma mensalidade pendente</p>
-                            <p class="mt-2 text-sm leading-6">Seu acesso está liberado e não há cobrança em aberto neste momento.</p>
-                        </div>
+                    @if ($canManageBilling)
+                        @if ($failedCheckout && ! $subscription?->allowsAccess())
+                            <div role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-900">
+                                <p class="font-bold">{{ $failedCheckout->statusLabel() }}{{ $failedCheckout->failure_http_status ? ' · HTTP '.$failedCheckout->failure_http_status : '' }}</p>
+                                <p class="mt-1">{{ $failedCheckout->failure_message }}</p>
+                            </div>
+                        @endif
+
+                        @foreach ($checkouts->filter(fn ($checkout) => $checkout->isRecurring()) as $checkout)
+                            <div class="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-slate-950">Cartão recorrente ({{ $checkout->billing_cycle === 'yearly' ? 'Anual' : 'Mensal' }})</p>
+                                    <span class="rounded-lg bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm">{{ $checkout->environment === 'test' ? 'Teste' : 'Produção' }}</span>
+                                </div>
+                                <p class="text-sm text-slate-600">Situação: <strong class="text-slate-900">{{ $checkout->statusLabel() }}</strong></p>
+
+                                @if ($checkout->status === 'pending' && $checkout->checkout_url)
+                                    <a href="{{ $checkout->checkout_url }}" class="rounded-xl bg-brand-800 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-brand-900">Continuar no Mercado Pago</a>
+                                @endif
+
+                                <div class="flex flex-wrap gap-4 text-xs font-bold">
+                                    <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">
+                                        @csrf @method('PUT')
+                                        <button class="text-brand-800 underline hover:text-brand-900">Consultar no Mercado Pago</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">
+                                        @csrf @method('DELETE')
+                                        <button class="text-red-700 underline hover:text-red-800">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : 'Cancelar próximas cobranças' }}</button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
                     @endif
 
-                    @if ($openInvoice && ! $pixKey && ! $pixCopyPaste && ! $onlinePaymentsEnabled && ! $recurrence)
-                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
-                            <p class="font-black">Pagamento em configuração</p>
-                            <p class="mt-2 text-sm leading-6">Fale com o atendimento para receber o PIX de R$ {{ number_format($openInvoice->amount_cents / 100, 2, ',', '.') }} e ter o acesso liberado.</p>
+                    @if ($subscription?->allowsAccess() && ! $openInvoice)
+                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+                            <p class="font-black">Tudo em dia!</p>
+                            <p class="mt-1 text-xs leading-5">Seu acesso está ativo e regularizado.</p>
                         </div>
                     @endif
 
                     @if ($supportWhatsappUrl)
-                        <a href="{{ $supportWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="rounded-2xl border border-slate-300 px-5 py-4 text-center font-bold text-slate-800 hover:bg-slate-50">Falar com o atendimento</a>
+                        <a href="{{ $supportWhatsappUrl }}" target="_blank" rel="noopener noreferrer" class="rounded-2xl border border-slate-300 px-5 py-3.5 text-center text-sm font-bold text-slate-800 transition-colors hover:bg-slate-50">Falar com o atendimento</a>
                     @endif
                 </div>
 
-                <p class="mt-6 text-xs leading-5 text-slate-500">Você mantém acesso ao login e aos canais de pagamento mesmo quando a operação está bloqueada.</p>
+                <p class="mt-6 text-xs leading-5 text-slate-500">O cancelamento da recorrência pode ser feito a qualquer momento antes da próxima renovação.</p>
             </aside>
         </div>
     </main>

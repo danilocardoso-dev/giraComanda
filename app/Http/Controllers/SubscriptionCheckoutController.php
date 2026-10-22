@@ -22,12 +22,17 @@ class SubscriptionCheckoutController extends Controller
     {
         $subscription = $this->subscription($request);
         $validated = $request->validate([
-            'kind' => ['required', 'in:pix,card'], 'payer_email' => ['required', 'email:rfc', 'max:254'],
+            'kind' => ['nullable', 'in:pix,card'],
+            'billing_cycle' => ['nullable', 'in:monthly,yearly'],
+            'payer_email' => ['required', 'email:rfc', 'max:254'],
             'recurring_consent' => ['accepted_if:kind,card'],
         ], ['recurring_consent.accepted_if' => 'Confirme a autorização da assinatura recorrente para continuar.']);
 
+        $kind = $validated['kind'] ?? 'card';
+        $billingCycle = $validated['billing_cycle'] ?? 'monthly';
+
         try {
-            $checkout = $create->handle($subscription, $validated['kind'], $validated['payer_email']);
+            $checkout = $create->handle($subscription, $kind, $validated['payer_email'], $billingCycle);
         } catch (RuntimeException|LockTimeoutException $exception) {
             return back()->withInput(['payer_email' => $validated['payer_email']])->withErrors(['payment' => $exception instanceof LockTimeoutException ? 'Outra operação está em andamento. Aguarde e consulte novamente.' : $exception->getMessage()]);
         }

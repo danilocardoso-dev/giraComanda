@@ -99,8 +99,9 @@ class SynchronizeMercadoPago
             throw new RuntimeException('Identificação da recorrência divergente.');
         }
         $auto = $data['auto_recurring'] ?? [];
+        $expectedFrequency = $checkout->billing_cycle === 'yearly' ? 12 : 1;
         if (($auto['currency_id'] ?? null) !== 'BRL' || $this->cents($auto['transaction_amount'] ?? 0) !== $checkout->amount_cents
-            || (int) ($auto['frequency'] ?? 0) !== 1 || ($auto['frequency_type'] ?? '') !== 'months') {
+            || (int) ($auto['frequency'] ?? 0) !== $expectedFrequency || ($auto['frequency_type'] ?? '') !== 'months') {
             throw new RuntimeException('Condições da recorrência divergentes. Revisão administrativa necessária.');
         }
         $status = $data['status'] ?? '';
@@ -206,7 +207,7 @@ class SynchronizeMercadoPago
                 if ($subscription->status !== SubscriptionStatus::Trial && ! $invoice->reference_month->isSameMonth($cycleDate)) {
                     $invoice = $subscription->invoices()->firstOrCreate(['reference_month' => $cycleDate->copy()->startOfMonth()->toDateString()], [
                         'due_date' => $cycleDate->toDateString(), 'amount_cents' => $checkout->amount_cents,
-                        'generated_automatically' => true, 'notes' => 'Mensalidade recorrente Mercado Pago.',
+                        'generated_automatically' => true, 'notes' => $checkout->billing_cycle === 'yearly' ? 'Assinatura anual recorrente Mercado Pago.' : 'Mensalidade recorrente Mercado Pago.',
                     ]);
                 }
             }
@@ -225,10 +226,10 @@ class SynchronizeMercadoPago
             }
             $reactivate = ! in_array($subscription->status, [SubscriptionStatus::Suspended, SubscriptionStatus::Cancelled], true)
                 && $subscription->company->active;
-            $this->settle->handle($subscription, $invoice, $approvedAt, $checkout->kind === 'pix' ? 'pix' : 'credit_card', $reactivate, true);
+            $this->settle->handle($subscription, $invoice, $approvedAt, $checkout->kind === 'pix' ? 'pix' : 'credit_card', $reactivate, true, $checkout->billing_cycle);
             $payment->update(['applied_at' => now(), 'review_reason' => $reactivate ? null : 'access_kept_blocked_by_admin']);
             PlatformActivityLog::query()->create(['company_id' => $subscription->company_id, 'action' => 'mercado_pago_payment_applied',
-                'description' => 'Pagamento Mercado Pago '.$id.' confirmado: R$ '.number_format($amount / 100, 2, ',', '.').($reactivate ? '. Acesso mensal liberado.' : '. Bloqueio administrativo preservado.')]);
+                'description' => 'Pagamento Mercado Pago '.$id.' confirmado: R$ '.number_format($amount / 100, 2, ',', '.').($reactivate ? ($checkout->billing_cycle === 'yearly' ? '. Acesso anual liberado.' : '. Acesso mensal liberado.') : '. Bloqueio administrativo preservado.')]);
         });
     }
 
