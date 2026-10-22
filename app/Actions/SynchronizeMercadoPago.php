@@ -183,7 +183,7 @@ class SynchronizeMercadoPago
             }
             if (($data['currency_id'] ?? '') !== 'BRL' || $amount !== $checkout->amount_cents
                 || ($checkout->kind === 'pix' && ($data['payment_method_id'] ?? '') !== 'pix')
-                || ($checkout->kind === 'card' && ($data['payment_type_id'] ?? '') !== 'credit_card')
+                || ($checkout->kind === 'card' && ! in_array($data['payment_type_id'] ?? '', ['credit_card', 'debit_card', 'account_money', 'prepaid_card'], true))
                 || (float) ($data['transaction_amount_refunded'] ?? 0) > 0) {
                 $this->review($payment, $subscription, 'amount_currency_or_method_mismatch');
 

@@ -819,6 +819,74 @@ class MercadoPagoBillingTest extends TestCase
         ]);
     }
 
+    public function test_card_subscription_accepts_account_money_payment(): void
+    {
+        $this->settings();
+        [$owner, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice);
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.mercadopago.com/preapproval/rec-123' => Http::response($this->recurrenceData($checkout)),
+            'api.mercadopago.com/authorized_payments/search*' => Http::response(['results' => [
+                ['id' => 'auth-1', 'payment' => ['id' => 184493277959, 'status' => 'approved'], 'last_modified' => now()->toIso8601String()],
+            ]]),
+            'api.mercadopago.com/authorized_payments/auth-1' => Http::response([
+                'id' => 'auth-1', 'preapproval_id' => 'rec-123', 'external_reference' => $checkout->uuid,
+                'payment' => ['id' => 184493277959], 'debit_date' => today()->toIso8601String(),
+            ]),
+            'api.mercadopago.com/v1/payments/184493277959' => Http::response($this->paymentData($checkout, [
+                'id' => 184493277959,
+                'payment_type_id' => 'account_money',
+                'payment_method_id' => 'account_money',
+            ])),
+        ]);
+
+        $this->actingAs($owner)->put(route('subscription.checkouts.update', $checkout))
+            ->assertRedirect()->assertSessionHas('payment_feedback');
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertSame(SubscriptionStatus::Active, $subscription->refresh()->status);
+        $this->assertNull(SubscriptionGatewayPayment::query()->sole()->review_reason);
+    }
+
+    public function test_portal_synchronizes_automatically_when_redirected_with_preapproval_id(): void
+    {
+        $this->settings();
+        [$owner, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice);
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.mercadopago.com/preapproval/rec-123' => Http::response($this->recurrenceData($checkout)),
+            'api.mercadopago.com/authorized_payments/search*' => Http::response(['results' => []]),
+        ]);
+
+        $this->actingAs($owner)->get(route('subscription.show', ['preapproval_id' => 'rec-123']))
+            ->assertOk()
+            ->assertSessionHas('payment_feedback');
+
+        $this->assertSame('authorized', $checkout->refresh()->status);
+    }
+
+    public function test_webhook_accepts_id_in_body_without_query_param(): void
+    {
+        $this->settings();
+        [$owner, $subscription, $invoice] = $this->customer();
+        $checkout = $this->pix($subscription, $invoice);
+        Http::preventStrayRequests();
+        Http::fake(['api.mercadopago.com/v1/payments/12345' => Http::response($this->paymentData($checkout))]);
+
+        $timestamp = (string) now()->timestamp;
+        $hash = hash_hmac('sha256', 'id:12345;request-id:test-req;ts:'.$timestamp.';', 'test-secret');
+
+        $this->postJson(route('mercado-pago.webhook', ['environment' => 'production']),
+            ['type' => 'payment', 'data' => ['id' => '12345']],
+            ['x-request-id' => 'test-req', 'x-signature' => 'ts='.$timestamp.',v1='.$hash])
+            ->assertOk()
+            ->assertJson(['received' => true]);
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+    }
+
     private function customer(): array
     {
         $subscription = Subscription::factory()->create(['status' => SubscriptionStatus::Trial,

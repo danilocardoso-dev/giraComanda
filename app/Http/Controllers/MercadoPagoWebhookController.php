@@ -19,7 +19,10 @@ class MercadoPagoWebhookController extends Controller
             return response()->json(['message' => 'Webhook ainda não configurado.'], 503);
         }
 
-        $id = $request->query->get('data_id') ?? $request->query->get('data.id');
+        $id = $request->query->get('data_id')
+            ?? $request->query->get('data.id')
+            ?? (is_scalar($request->input('data.id')) ? (string) $request->input('data.id') : null)
+            ?? (is_scalar($request->input('id')) ? (string) $request->input('id') : null);
         $requestId = $request->header('x-request-id');
         $signature = $request->header('x-signature', '');
         preg_match('/(?:^|,)\s*ts=(\d+)(?:,|$)/', $signature, $timestamp);
@@ -37,7 +40,22 @@ class MercadoPagoWebhookController extends Controller
             return response()->json(['message' => 'Recurso divergente.'], 400);
         }
 
-        $type = $request->input('type');
+        $type = $request->input('type') ?? $request->query->get('type') ?? $request->input('topic') ?? $request->query->get('topic');
+        if (blank($type) && is_string($request->input('action'))) {
+            $action = $request->input('action');
+            if (str_starts_with($action, 'payment.')) {
+                $type = 'payment';
+            } elseif (str_starts_with($action, 'subscription_preapproval.')) {
+                $type = 'subscription_preapproval';
+            } elseif (str_starts_with($action, 'subscription_authorized_payment.')) {
+                $type = 'subscription_authorized_payment';
+            }
+        }
+        if ($type === 'preapproval') {
+            $type = 'subscription_preapproval';
+        } elseif ($type === 'authorized_payment') {
+            $type = 'subscription_authorized_payment';
+        }
         try {
             match ($type) {
                 'payment' => $synchronize->payment($environment, $id),

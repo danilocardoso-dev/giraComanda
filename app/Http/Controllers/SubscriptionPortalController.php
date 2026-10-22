@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\BuildSubscriptionPixQrCode;
+use App\Actions\SynchronizeMercadoPago;
 use App\Actions\SynchronizeSubscriptionInvoices;
 use App\CompanyRole;
 use App\Models\Company;
@@ -18,6 +19,7 @@ class SubscriptionPortalController extends Controller
         Request $request,
         SynchronizeSubscriptionInvoices $synchronizeSubscriptionInvoices,
         BuildSubscriptionPixQrCode $buildSubscriptionPixQrCode,
+        SynchronizeMercadoPago $synchronizeMercadoPago,
     ): View {
         $company = Company::query()
             ->with('subscription')
@@ -29,6 +31,33 @@ class SubscriptionPortalController extends Controller
 
         if ($subscription !== null) {
             $synchronizeSubscriptionInvoices->handle($subscription);
+
+            if ($request->filled('preapproval_id')) {
+                $preapprovalId = (string) $request->query('preapproval_id');
+                $checkout = SubscriptionCheckout::query()
+                    ->where('subscription_id', $subscription->id)
+                    ->where('kind', 'card')
+                    ->where(function (Builder $query) use ($preapprovalId): void {
+                        $query->where('remote_id', $preapprovalId)
+                            ->orWhereIn('status', ['creating', 'pending', 'authorized']);
+                    })
+                    ->latest('id')
+                    ->first();
+
+                if ($checkout !== null) {
+                    if ($checkout->remote_id === null) {
+                        $checkout->update(['remote_id' => $preapprovalId]);
+                    }
+                    try {
+                        $feedback = $synchronizeMercadoPago->checkout($checkout);
+                        if (! session()->has('payment_feedback')) {
+                            session()->flash('payment_feedback', $feedback);
+                        }
+                    } catch (\Throwable) {
+                        // Ignora falhas de comunicação externa para não quebrar a exibição do portal
+                    }
+                }
+            }
         }
 
         $openInvoice = $subscription?->invoices()
