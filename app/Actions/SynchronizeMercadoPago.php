@@ -191,7 +191,7 @@ class SynchronizeMercadoPago
             }
             $approvedAt = Carbon::parse($data['date_approved'] ?? throw new RuntimeException('Data de aprovação ausente.'));
             $payment->update(['approved_at' => $approvedAt]);
-            if ($environment === 'test') {
+            if ($environment === 'test' && ! config('giracomanda.subscription.allow_test_settle', false)) {
                 $payment->update(['review_reason' => 'test_payment_not_applied']);
 
                 return;
