@@ -154,7 +154,7 @@ class SynchronizeMercadoPago
             || ($recurrence === null && $externalRef !== $checkout->uuid)
             || ($recurrence !== null && filled($externalRef) && $externalRef !== $checkout->uuid)
             || ($checkout->kind === 'pix' && $checkout->remote_id !== $id)
-            || ! is_bool($data['live_mode'] ?? null) || $data['live_mode'] !== ($environment === 'production')) {
+            || ($environment === 'production' && ($data['live_mode'] ?? null) === false)) {
             throw new RuntimeException('Identificação ou ambiente do pagamento divergente.');
         }
 
