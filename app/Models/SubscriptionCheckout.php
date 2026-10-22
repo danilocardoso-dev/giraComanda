@@ -39,6 +39,13 @@ class SubscriptionCheckout extends Model
 
     public function statusLabel(): string
     {
+        if ($this->status === 'authorized') {
+            $lastPayment = $this->payments()->latest('id')->first();
+            if ($lastPayment?->status === 'approved' && ($this->subscription?->allowsAccess() || $this->invoice?->paid_at !== null)) {
+                return 'Recorrência ativa (em dia)';
+            }
+        }
+
         return match ($this->status) {
             'creating' => 'Criação não confirmada',
             'pending' => $this->kind === 'card' ? 'Aguardando autorização' : 'Aguardando pagamento',

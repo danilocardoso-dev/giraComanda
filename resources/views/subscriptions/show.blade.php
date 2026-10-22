@@ -62,7 +62,7 @@
                         </form>
                     @endif
                     @if ($canManageBilling)
-                        @if ($failedCheckout)
+                        @if ($failedCheckout && ! $subscription?->allowsAccess())
                             <div role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm leading-6 text-red-900"><p class="font-bold">{{ $failedCheckout->statusLabel() }}{{ $failedCheckout->failure_http_status ? ' · HTTP '.$failedCheckout->failure_http_status : '' }}</p><p class="mt-2">{{ $failedCheckout->failure_message }}</p><p class="mt-2">{{ $failedCheckout->status === 'rejected' ? 'Esta tentativa não confirma assinatura nem pagamento. Corrija o motivo indicado e tente novamente no formulário.' : 'O resultado da criação ainda é desconhecido. Uma consulta sem resultado não confirma pagamento nem cancelamento.' }}</p></div>
                         @endif
                         @foreach ($checkouts->filter(fn ($checkout) => $checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['creating', 'pending', 'in_process'], true))) as $checkout)

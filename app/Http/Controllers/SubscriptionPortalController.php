@@ -11,6 +11,7 @@ use App\Models\PlatformPaymentSetting;
 use App\Models\SubscriptionCheckout;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class SubscriptionPortalController extends Controller
@@ -20,7 +21,7 @@ class SubscriptionPortalController extends Controller
         SynchronizeSubscriptionInvoices $synchronizeSubscriptionInvoices,
         BuildSubscriptionPixQrCode $buildSubscriptionPixQrCode,
         SynchronizeMercadoPago $synchronizeMercadoPago,
-    ): View {
+    ): RedirectResponse|View {
         $company = Company::query()
             ->with('subscription')
             ->whereHas('memberships', fn (Builder $query): Builder => $query
@@ -56,6 +57,10 @@ class SubscriptionPortalController extends Controller
                     } catch (\Throwable) {
                         // Ignora falhas de comunicação externa para não quebrar a exibição do portal
                     }
+                }
+
+                if ($subscription->refresh()->allowsAccess()) {
+                    return to_route('dashboard')->with('success', 'Pagamento confirmado! Acesso liberado.');
                 }
             }
         }
@@ -101,7 +106,9 @@ class SubscriptionPortalController extends Controller
             'recurrence' => $recurrence,
             'dynamicPix' => $dynamicPix,
             'checkouts' => $checkouts,
-            'failedCheckout' => $checkouts->first(fn (SubscriptionCheckout $checkout): bool => filled($checkout->failure_message) && in_array($checkout->status, ['creating', 'rejected'], true)),
+            'failedCheckout' => ($subscription?->allowsAccess() || $openInvoice === null)
+                ? null
+                : $checkouts->first(fn (SubscriptionCheckout $checkout): bool => filled($checkout->failure_message) && in_array($checkout->status, ['creating', 'rejected'], true)),
         ]);
     }
 }
