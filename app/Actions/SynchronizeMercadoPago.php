@@ -122,7 +122,7 @@ class SynchronizeMercadoPago
         if ($checkout === null || blank(data_get($data, 'payment.id'))) {
             return;
         }
-        if (($data['external_reference'] ?? null) !== $checkout->uuid || (string) ($data['id'] ?? '') !== $id) {
+        if ((filled($data['external_reference'] ?? null) && $data['external_reference'] !== $checkout->uuid) || (string) ($data['id'] ?? '') !== $id) {
             throw new RuntimeException('Identificação da cobrança recorrente divergente.');
         }
         $this->payment($environment, (string) $data['payment']['id'], $checkout, $data['debit_date'] ?? null);
@@ -149,7 +149,10 @@ class SynchronizeMercadoPago
             }
             throw new RuntimeException('A fatura recorrente ainda não está disponível para consulta.');
         }
-        if ((string) ($data['id'] ?? '') !== $id || ($data['external_reference'] ?? null) !== $checkout->uuid
+        $externalRef = $data['external_reference'] ?? null;
+        if ((string) ($data['id'] ?? '') !== $id
+            || ($recurrence === null && $externalRef !== $checkout->uuid)
+            || ($recurrence !== null && filled($externalRef) && $externalRef !== $checkout->uuid)
             || ($checkout->kind === 'pix' && $checkout->remote_id !== $id)
             || ! is_bool($data['live_mode'] ?? null) || $data['live_mode'] !== ($environment === 'production')) {
             throw new RuntimeException('Identificação ou ambiente do pagamento divergente.');
