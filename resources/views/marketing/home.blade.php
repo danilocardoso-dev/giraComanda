@@ -2,6 +2,9 @@
     $trialDays = (int) config('giracomanda.subscription.trial_days', 7);
     $monthlyAmount = (int) config('giracomanda.subscription.monthly_amount_cents', 19700) / 100;
     $monthlyAmountFormatted = number_format($monthlyAmount, 0, ',', '.');
+    $yearlyAmount = (int) config('giracomanda.subscription.yearly_amount_cents', 197000) / 100;
+    $yearlyAmountFormatted = number_format($yearlyAmount, 0, ',', '.');
+    $yearlyEquivalentMonthly = number_format($yearlyAmount / 12, 2, ',', '.');
     $supportWhatsapp = preg_replace('/\D+/', '', (string) config('giracomanda.subscription.support_whatsapp'));
 @endphp
 <!DOCTYPE html>
@@ -9,7 +12,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Do QR Code ao recebimento: organize comandas, consumo por pessoa, rateio, caixa e fiado com o GiraComanda. Teste {{ $trialDays }} dias grátis. Depois, R$ {{ $monthlyAmountFormatted }} por mês.">
+    <meta name="description" content="Do QR Code ao recebimento: organize comandas, consumo por pessoa, rateio, caixa e fiado com o GiraComanda. Teste {{ $trialDays }} dias grátis. Planos mensal de R$ {{ $monthlyAmountFormatted }} e anual com 2 meses grátis.">
     <title>GiraComanda · Cada consumo na conta certa</title>
     <x-favicon />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -45,7 +48,7 @@
                     <p data-hero-enter="2" class="max-w-lg text-lg leading-8 text-brand-100 sm:text-xl sm:leading-9">Do cartão com QR Code ao fechamento do caixa: organize o consumo por pessoa, divida a conta e acompanhe cada pagamento, inclusive o fiado.</p>
                     <div data-hero-enter="3" class="flex w-full flex-col items-start gap-3 pt-1">
                         <a href="{{ route('trial.create') }}" class="landing-cta w-full sm:w-auto">Começar {{ $trialDays }} dias grátis <span aria-hidden="true">→</span></a>
-                        <p class="text-sm leading-6 text-brand-200">Sem cartão de crédito. Depois, R$ {{ $monthlyAmountFormatted }}/mês.</p>
+                        <p class="text-sm leading-6 text-brand-200">Sem cartão de crédito. Depois, R$ {{ $monthlyAmountFormatted }}/mês ou plano anual com 2 meses grátis.</p>
                     </div>
                     <a href="#solucao" class="landing-link text-brand-100">Conhecer a solução <span aria-hidden="true">↓</span></a>
                 </div>
@@ -136,22 +139,54 @@
 
         <section id="plano" class="landing-section landing-pricing landing-dark scroll-mt-20 text-white" aria-labelledby="pricing-title">
             <div data-reveal class="landing-container flex flex-col items-center text-center">
-                <p class="text-sm font-semibold tracking-[0.12em] text-brand-200 uppercase">Um plano. A operação completa.</p>
+                <p class="text-sm font-semibold tracking-[0.12em] text-brand-200 uppercase">Planos transparentes. A operação completa.</p>
                 <h2 id="pricing-title" class="landing-heading mt-5 max-w-2xl text-white">Tudo para sua operação.</h2>
                 <p class="mt-5 max-w-xl text-lg leading-8 text-brand-100">Experimente com seus produtos, sua equipe e sua rotina antes de assinar.</p>
-                <p class="mt-10 flex items-baseline justify-center gap-2.5 font-semibold tracking-[-0.06em] sm:mt-12" aria-label="{{ $monthlyAmountFormatted }} reais por mês">
-                    <span class="text-3xl tracking-tight sm:text-4xl">R$</span>
-                    <span class="text-[6rem] leading-none tabular-nums sm:text-[8rem]">{{ $monthlyAmountFormatted }}</span>
-                </p>
-                <p class="mt-4 text-xl text-brand-100">por mês após {{ $trialDays }} dias grátis</p>
-                <a href="{{ route('trial.create') }}" class="landing-cta mt-8 w-full max-w-sm text-lg">Começar meu teste grátis <span aria-hidden="true">→</span></a>
-                <p class="mt-4 text-base text-brand-200">Sem cartão para começar. Você decide como continuar.</p>
-                <ul class="mt-10 flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-4 border-t border-white/20 pt-8 text-base text-brand-100">
+
+                <div class="mt-10 grid w-full max-w-4xl gap-6 sm:mt-12 md:grid-cols-2 text-left">
+                    <!-- Plano Mensal -->
+                    <div class="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm">
+                        <div>
+                            <span class="rounded-full bg-white/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-brand-200">Plano Mensal</span>
+                            <div class="mt-5 flex items-baseline gap-2">
+                                <span class="text-3xl font-semibold">R$</span>
+                                <span class="text-5xl font-black">{{ $monthlyAmountFormatted }}</span>
+                                <span class="text-brand-200">/mês</span>
+                            </div>
+                            <p class="mt-3 text-sm leading-6 text-brand-200">Ideal para quem busca máxima flexibilidade, com cobrança mensal automática no cartão.</p>
+                        </div>
+                        <div class="mt-8">
+                            <a href="{{ route('trial.create') }}" class="landing-cta w-full text-center">Começar teste grátis</a>
+                            <p class="mt-3 text-center text-xs text-brand-300">{{ $trialDays }} dias grátis, sem cartão para começar</p>
+                        </div>
+                    </div>
+
+                    <!-- Plano Anual -->
+                    <div class="relative flex flex-col justify-between rounded-3xl border-2 border-warm-500 bg-white/10 p-8 shadow-2xl backdrop-blur-sm">
+                        <span class="absolute -top-3 right-6 rounded-full bg-warm-500 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-brand-950">2 meses grátis</span>
+                        <div>
+                            <span class="rounded-full bg-warm-500/20 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-warm-300">Plano Anual</span>
+                            <div class="mt-5 flex items-baseline gap-2">
+                                <span class="text-3xl font-semibold">R$</span>
+                                <span class="text-5xl font-black">{{ $yearlyAmountFormatted }}</span>
+                                <span class="text-brand-200">/ano</span>
+                            </div>
+                            <p class="mt-1 text-sm font-bold text-warm-300">Equivalente a R$ {{ $yearlyEquivalentMonthly }}/mês</p>
+                            <p class="mt-2 text-sm leading-6 text-brand-200">Economize 2 mensalidades inteiras pagando 10 meses para usar o ano todo.</p>
+                        </div>
+                        <div class="mt-8">
+                            <a href="{{ route('trial.create') }}" class="landing-cta w-full bg-warm-500 text-center font-black text-brand-950 hover:bg-warm-400">Começar com plano anual</a>
+                            <p class="mt-3 text-center text-xs text-brand-300">{{ $trialDays }} dias grátis para testar à vontade</p>
+                        </div>
+                    </div>
+                </div>
+
+                <ul class="mt-12 flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-4 border-t border-white/20 pt-8 text-base text-brand-100">
                     @foreach (['Comandas e rateio', 'Caixa e contas a receber', 'Estoque e relatórios', 'Usuários e filiais'] as $included)
                         <li class="flex items-center gap-2"><span class="text-brand-300" aria-hidden="true">✓</span>{{ $included }}</li>
                     @endforeach
                 </ul>
-                <p class="mt-8 max-w-xl text-base leading-7 text-brand-200">Ao terminar o teste, a mensalidade é gerada. Escolha uma forma de pagamento na área de assinatura e, após a confirmação, continue com seus dados preservados.</p>
+                <p class="mt-8 max-w-xl text-base leading-7 text-brand-200">Ao terminar o teste, você escolhe se prefere o plano mensal ou anual com desconto na área de assinatura.</p>
                 <a href="{{ route('login') }}" class="landing-link mt-5 text-white">Já sou cliente <span aria-hidden="true">↗</span></a>
             </div>
         </section>
