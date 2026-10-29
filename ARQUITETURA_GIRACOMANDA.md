@@ -21,7 +21,7 @@ Tecnicamente, a aplicação é um monólito modular em Laravel. A interface é r
 ### Estado comercial padrão
 
 - teste gratuito: **7 dias**;
-- mensalidade padrão para novos cadastros: **R$ 197,00**;
+- mensalidade padrão para novos cadastros: **R$ 297,00** (anual: **R$ 2.970,00**);
 - cobrança atual: controle interno com geração de mensalidades e baixa manual;
 - integração automática com Mercado Pago: **ainda não implementada**;
 - comprovantes operacionais: **não fiscais**.
@@ -730,7 +730,7 @@ Para que os horários funcionem, o ambiente precisa executar `php artisan schedu
 
 | Variável | Uso | Padrão |
 |---|---|---:|
-| `SUBSCRIPTION_MONTHLY_AMOUNT_CENTS` | Valor inicial da mensalidade | `19700` |
+| `SUBSCRIPTION_MONTHLY_AMOUNT_CENTS` | Valor inicial da mensalidade | `29700` |
 | `SUBSCRIPTION_TRIAL_DAYS` | Duração do teste | `7` |
 | `SUBSCRIPTION_PIX_KEY` | Chave PIX exibida no portal | vazio |
 | `SUBSCRIPTION_PIX_COPY_PASTE` | Payload PIX usado para copiar e gerar o QR Code | vazio |

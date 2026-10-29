@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['company_id', 'name', 'slug', 'active'])]
+#[Fillable(['company_id', 'name', 'slug', 'active', 'menu_ordering_enabled'])]
 class Branch extends Model
 {
     /** @use HasFactory<BranchFactory> */
@@ -36,6 +36,6 @@ class Branch extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['active' => 'boolean'];
+        return ['active' => 'boolean', 'menu_ordering_enabled' => 'boolean'];
     }
 }

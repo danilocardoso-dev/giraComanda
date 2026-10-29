@@ -48,7 +48,7 @@ class MercadoPagoBillingTest extends TestCase
         $this->assertNull($invoice->refresh()->paid_at);
         $this->assertSame(SubscriptionStatus::Trial, $subscription->refresh()->status);
         Http::assertSentCount(1);
-        Http::assertSent(fn (ClientRequest $request): bool => $request['transaction_amount'] === 197
+        Http::assertSent(fn (ClientRequest $request): bool => $request['transaction_amount'] === 297
             && $request['external_reference'] === $checkout->uuid
             && $request->hasHeader('X-Idempotency-Key', $checkout->uuid)
             && str_ends_with($request['notification_url'], '/webhooks/mercado-pago/test'));
@@ -122,7 +122,7 @@ class MercadoPagoBillingTest extends TestCase
         $this->assertFalse($subscription->refresh()->allowsAccess());
         $checkout = SubscriptionCheckout::query()->sole();
         Http::assertSent(fn (ClientRequest $request): bool => $request['external_reference'] === $checkout->uuid
-            && $request['status'] === 'pending' && $request['auto_recurring']['transaction_amount'] === 197
+            && $request['status'] === 'pending' && $request['auto_recurring']['transaction_amount'] === 297
             && ! isset($request['card_token_id']));
         // A forged return parameter cannot activate access.
         $this->get(route('subscription.show', ['status' => 'approved']))->assertOk();
@@ -911,12 +911,12 @@ class MercadoPagoBillingTest extends TestCase
 
         $checkout = SubscriptionCheckout::query()->where('remote_id', 'rec-annual-123')->firstOrFail();
         $this->assertSame('yearly', $checkout->billing_cycle);
-        $this->assertSame(197000, $checkout->amount_cents);
+        $this->assertSame(297000, $checkout->amount_cents);
 
         Http::assertSent(function (ClientRequest $request) use ($checkout): bool {
             return (int) $request['auto_recurring']['frequency'] === 12
                 && $request['auto_recurring']['frequency_type'] === 'months'
-                && (int) $request['auto_recurring']['transaction_amount'] === 1970
+                && (int) $request['auto_recurring']['transaction_amount'] === 2970
                 && $request['external_reference'] === $checkout->uuid;
         });
     }
@@ -925,7 +925,7 @@ class MercadoPagoBillingTest extends TestCase
     {
         $this->settings();
         [$owner, $subscription, $invoice] = $this->customer();
-        $invoice->update(['amount_cents' => 197000]);
+        $invoice->update(['amount_cents' => 297000]);
         $checkout = SubscriptionCheckout::factory()->create([
             'subscription_id' => $subscription->id,
             'subscription_invoice_id' => $invoice->id,
@@ -934,7 +934,7 @@ class MercadoPagoBillingTest extends TestCase
             'status' => 'authorized',
             'remote_id' => 'rec-annual-123',
             'environment' => 'production',
-            'amount_cents' => 197000,
+            'amount_cents' => 297000,
         ]);
 
         Http::preventStrayRequests();
@@ -943,7 +943,7 @@ class MercadoPagoBillingTest extends TestCase
                 'id' => 'rec-annual-123',
                 'external_reference' => $checkout->uuid,
                 'status' => 'authorized',
-                'auto_recurring' => ['frequency' => 12, 'frequency_type' => 'months', 'currency_id' => 'BRL', 'transaction_amount' => 1970],
+                'auto_recurring' => ['frequency' => 12, 'frequency_type' => 'months', 'currency_id' => 'BRL', 'transaction_amount' => 2970],
             ]),
             'api.mercadopago.com/authorized_payments/auth-123' => Http::response([
                 'id' => 'auth-123',
@@ -956,7 +956,7 @@ class MercadoPagoBillingTest extends TestCase
                 'external_reference' => $checkout->uuid,
                 'live_mode' => true,
                 'status' => 'approved',
-                'transaction_amount' => 1970,
+                'transaction_amount' => 2970,
                 'currency_id' => 'BRL',
                 'payment_type_id' => 'credit_card',
                 'date_approved' => now()->toIso8601String(),
@@ -975,12 +975,12 @@ class MercadoPagoBillingTest extends TestCase
     private function customer(): array
     {
         $subscription = Subscription::factory()->create(['status' => SubscriptionStatus::Trial,
-            'trial_ends_at' => today()->subDay(), 'monthly_amount_cents' => 19700]);
+            'trial_ends_at' => today()->subDay(), 'monthly_amount_cents' => 29700]);
         Branch::factory()->for($subscription->company)->create();
         $owner = User::factory()->admin()->create();
         $owner->companyMemberships()->delete();
         CompanyMembership::factory()->create(['company_id' => $subscription->company_id, 'user_id' => $owner->id, 'role' => CompanyRole::CompanyAdmin, 'active' => true]);
-        $invoice = SubscriptionInvoice::factory()->for($subscription)->create(['amount_cents' => 19700, 'due_date' => today()]);
+        $invoice = SubscriptionInvoice::factory()->for($subscription)->create(['amount_cents' => 29700, 'due_date' => today()]);
 
         return [$owner, $subscription, $invoice];
     }
@@ -1000,14 +1000,14 @@ class MercadoPagoBillingTest extends TestCase
     private function paymentData(SubscriptionCheckout $checkout, array $overrides = []): array
     {
         return ['id' => 12345, 'external_reference' => $checkout->uuid, 'live_mode' => $checkout->environment === 'production', 'status' => 'approved',
-            'transaction_amount' => 197, 'currency_id' => 'BRL', 'payment_method_id' => 'pix',
+            'transaction_amount' => 297, 'currency_id' => 'BRL', 'payment_method_id' => 'pix',
             'date_approved' => now()->toIso8601String(), ...$overrides];
     }
 
     private function recurrenceData(SubscriptionCheckout $checkout, array $overrides = []): array
     {
         return ['id' => 'rec-123', 'external_reference' => $checkout->uuid, 'status' => 'authorized',
-            'auto_recurring' => ['frequency' => 1, 'frequency_type' => 'months', 'currency_id' => 'BRL', 'transaction_amount' => 197], ...$overrides];
+            'auto_recurring' => ['frequency' => 1, 'frequency_type' => 'months', 'currency_id' => 'BRL', 'transaction_amount' => 297], ...$overrides];
     }
 
     private function webhook(string $id, string $type = 'payment', string $environment = 'production'): TestResponse

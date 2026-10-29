@@ -1,5 +1,7 @@
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { setupMarketingPage } from './marketing';
+import { setupMenuPage } from './menu';
+import { setupMenuOrderNotifications } from './menu-orders';
 
 const onlyDigits = (value, limit) => value.replace(/\D/g, '').slice(0, limit);
 
@@ -359,6 +361,8 @@ const setupQrScanner = () => {
 document.addEventListener('DOMContentLoaded', () => {
     setupQrScanner();
     setupMarketingPage();
+    setupMenuPage();
+    setupMenuOrderNotifications();
 
     document.querySelectorAll('[data-copy-text]').forEach((button) => {
         button.addEventListener('click', async () => {

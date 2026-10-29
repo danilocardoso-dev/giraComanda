@@ -63,6 +63,9 @@
                                     'bg-emerald-100 text-emerald-800' => $product->active,
                                     'bg-slate-200 text-slate-700' => ! $product->active,
                                 ])>{{ $product->active ? 'Ativo' : 'Inativo' }}</span>
+                                @if ($product->show_on_menu)
+                                    <span class="mt-1 block text-xs font-bold text-brand-700">No cardápio{{ $product->menuCategory ? ' · '.$product->menuCategory->name : '' }}</span>
+                                @endif
                             </td>
                             <td class="px-5 py-4 text-right">
                                 <div class="flex justify-end gap-3">

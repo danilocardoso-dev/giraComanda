@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class CreateProduct
 {
     /**
-     * @param  array{name: string, sale_type: string, price_cents: int, stock_milliunits: ?int, min_stock_milliunits: ?int, active: bool}  $attributes
+     * @param  array{name: string, sale_type: string, price_cents: int, stock_milliunits: ?int, min_stock_milliunits: ?int, active: bool, menu_category_id?: ?int, description?: ?string, photo_path?: ?string, show_on_menu?: bool}  $attributes
      */
     public function handle(array $attributes, User $user): Product
     {

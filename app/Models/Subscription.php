@@ -18,7 +18,7 @@ class Subscription extends Model
 
     public function yearlyAmountCents(): int
     {
-        return $this->yearly_amount_cents ?? config('giracomanda.subscription.yearly_amount_cents', 197000);
+        return $this->yearly_amount_cents ?? config('giracomanda.subscription.yearly_amount_cents', 297000);
     }
 
     public function company(): BelongsTo

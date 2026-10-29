@@ -12,7 +12,7 @@ class BuildCardQrCode
     public function __invoke(Card $card): string
     {
         $qrCode = new QrCode(
-            data: $card->qr_token,
+            data: route('menu.show', $card->qr_token),
             errorCorrectionLevel: ErrorCorrectionLevel::Medium,
             size: 600,
             margin: 24,

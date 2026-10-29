@@ -4,8 +4,8 @@ return [
     'establishment_name' => env('ESTABLISHMENT_NAME', 'GiraComanda'),
     'general_due_day' => (int) env('GENERAL_DUE_DAY', 10),
     'subscription' => [
-        'monthly_amount_cents' => (int) env('SUBSCRIPTION_MONTHLY_AMOUNT_CENTS', 19700),
-        'yearly_amount_cents' => (int) env('SUBSCRIPTION_YEARLY_AMOUNT_CENTS', 197000),
+        'monthly_amount_cents' => (int) env('SUBSCRIPTION_MONTHLY_AMOUNT_CENTS', 29700),
+        'yearly_amount_cents' => (int) env('SUBSCRIPTION_YEARLY_AMOUNT_CENTS', 297000),
         'allow_test_settle' => (bool) env('SUBSCRIPTION_ALLOW_TEST_SETTLE', false),
         'trial_days' => (int) env('SUBSCRIPTION_TRIAL_DAYS', 7),
         'pix_key' => env('SUBSCRIPTION_PIX_KEY'),

@@ -68,6 +68,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by(Str::transliterate($email.'|'.$request->ip()));
         });
 
+        RateLimiter::for('menu-orders', fn (Request $request): Limit => Limit::perMinute(6)->by('menu-orders|'.$request->route('qrToken')));
+
+        RateLimiter::for('menu-status', fn (Request $request): Limit => Limit::perMinute(20)->by('menu-status|'.$request->route('qrToken')));
+
         RateLimiter::for('password-reset', function (Request $request): Limit {
             $email = Str::lower((string) $request->input('email'));
 

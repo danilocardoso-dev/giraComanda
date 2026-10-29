@@ -95,7 +95,7 @@ class PlatformPaymentSettingControllerTest extends TestCase
         $admin = User::factory()->platformAdmin()->create();
         $subscription = Subscription::factory()->create([
             'status' => SubscriptionStatus::Active,
-            'monthly_amount_cents' => 19700,
+            'monthly_amount_cents' => 29700,
         ]);
         $credentials = [
             'test_public_key' => 'TEST-public-key-example',
@@ -137,7 +137,7 @@ class PlatformPaymentSettingControllerTest extends TestCase
         }
 
         $this->assertSame(SubscriptionStatus::Active, $subscription->refresh()->status);
-        $this->assertSame(19700, $subscription->monthly_amount_cents);
+        $this->assertSame(29700, $subscription->monthly_amount_cents);
         $this->assertDatabaseCount('subscription_invoices', 0);
         Http::assertNothingSent();
     }

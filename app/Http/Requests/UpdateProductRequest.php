@@ -41,6 +41,7 @@ class UpdateProductRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0.01', 'decimal:0,2'],
             'min_stock' => ['nullable', 'numeric', 'min:0', 'decimal:0,3'],
             'active' => ['required', 'boolean'],
+            ...StoreProductRequest::menuRules(),
         ];
     }
 
@@ -51,6 +52,7 @@ class UpdateProductRequest extends FormRequest
             'price' => $this->normalizeCurrency((string) $this->input('price')),
             'min_stock' => filled($this->input('min_stock')) ? $this->input('min_stock') : null,
             'active' => $this->boolean('active'),
+            ...StoreProductRequest::normalizedMenuInput($this),
         ]);
     }
 

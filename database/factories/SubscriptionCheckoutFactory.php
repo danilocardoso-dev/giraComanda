@@ -26,7 +26,7 @@ class SubscriptionCheckoutFactory extends Factory
             'uuid' => (string) Str::uuid(),
             'environment' => 'test', 'kind' => 'pix', 'status' => 'pending',
             'remote_id' => (string) fake()->unique()->numberBetween(100000, 999999),
-            'amount_cents' => 19700,
+            'amount_cents' => 29700,
             'pix_code' => '000201-pix-test', 'expires_at' => now()->addDay(),
         ];
     }

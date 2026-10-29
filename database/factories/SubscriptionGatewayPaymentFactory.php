@@ -21,7 +21,7 @@ class SubscriptionGatewayPaymentFactory extends Factory
         return [
             'subscription_checkout_id' => SubscriptionCheckout::factory(),
             'environment' => 'test', 'remote_id' => (string) fake()->unique()->numberBetween(1000000, 9999999),
-            'status' => 'pending', 'amount_cents' => 19700,
+            'status' => 'pending', 'amount_cents' => 29700,
         ];
     }
 }

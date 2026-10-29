@@ -25,6 +25,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EstablishmentSettingController;
 use App\Http\Controllers\ManagementReportController;
+use App\Http\Controllers\MenuCategoryController;
+use App\Http\Controllers\MenuOrderController;
+use App\Http\Controllers\MenuSettingController;
 use App\Http\Controllers\MercadoPagoWebhookController;
 use App\Http\Controllers\MonthlyClosingController;
 use App\Http\Controllers\MonthlyStatementDeliveryController;
@@ -38,7 +41,9 @@ use App\Http\Controllers\PlatformPaymentSettingController;
 use App\Http\Controllers\PlatformSubscriptionController;
 use App\Http\Controllers\PlatformSupportSessionController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductPhotoController;
 use App\Http\Controllers\ProductStockController;
+use App\Http\Controllers\PublicMenuController;
 use App\Http\Controllers\ReceivableController;
 use App\Http\Controllers\ReceivablePaymentController;
 use App\Http\Controllers\RequiredPasswordController;
@@ -59,6 +64,14 @@ Route::view('/privacidade', 'legal.privacy')->name('privacy');
 Route::view('/termos-de-uso', 'legal.terms')->name('terms');
 Route::post('/webhooks/mercado-pago/{environment}', MercadoPagoWebhookController::class)
     ->whereIn('environment', ['test', 'production'])->middleware('throttle:180,1')->name('mercado-pago.webhook');
+
+Route::prefix('cardapio/{qrToken}')->whereUuid('qrToken')->middleware('menu.card')->name('menu.')->group(function (): void {
+    Route::get('/', [PublicMenuController::class, 'show'])->name('show');
+    Route::get('/pedidos', [PublicMenuController::class, 'status'])->middleware('throttle:menu-status')->name('orders.status');
+    Route::post('/pedidos', [PublicMenuController::class, 'store'])->middleware('throttle:menu-orders')->name('orders.store');
+    Route::get('/produtos/{product}/foto/{photo?}', [PublicMenuController::class, 'photo'])->scopeBindings()->name('products.photo');
+    Route::get('/logo', [PublicMenuController::class, 'logo'])->name('logo');
+});
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/teste-gratis', [TrialRegistrationController::class, 'create'])->name('trial.create');
@@ -128,6 +141,10 @@ Route::middleware('auth')->group(function (): void {
             Route::delete('/tabs/{tab}/items/{item}', [TabItemController::class, 'destroy'])->name('tabs.items.destroy');
             Route::put('/tabs/{tab}/items/{item}/shares', [TabItemShareController::class, 'store'])->name('tabs.items.shares.store');
             Route::delete('/tabs/{tab}/items/{item}/shares', [TabItemShareController::class, 'destroy'])->name('tabs.items.shares.destroy');
+            Route::get('/pedidos-cardapio', [MenuOrderController::class, 'index'])->name('menu-orders.index');
+            Route::get('/pedidos-cardapio/pendentes', [MenuOrderController::class, 'pending'])->name('menu-orders.pending');
+            Route::post('/pedidos-cardapio/{menuOrder}/aceitar', [MenuOrderController::class, 'accept'])->name('menu-orders.accept');
+            Route::post('/pedidos-cardapio/{menuOrder}/recusar', [MenuOrderController::class, 'reject'])->name('menu-orders.reject');
         });
 
         Route::middleware('role:admin,cashier')->group(function (): void {
@@ -166,6 +183,12 @@ Route::middleware('auth')->group(function (): void {
             Route::resource('users', UserController::class)->except(['show', 'destroy']);
             Route::resource('products', ProductController::class)->except(['show', 'destroy']);
             Route::get('/products/{product}/stock', ProductStockController::class)->name('products.stock.show');
+            Route::get('/products/{product}/photo/{photo?}', ProductPhotoController::class)->scopeBindings()->name('products.photo');
+            Route::get('/administracao/cardapio', [MenuSettingController::class, 'edit'])->name('menu-settings.edit');
+            Route::put('/administracao/cardapio', [MenuSettingController::class, 'update'])->name('menu-settings.update');
+            Route::post('/administracao/cardapio/categorias', [MenuCategoryController::class, 'store'])->name('menu-categories.store');
+            Route::put('/administracao/cardapio/categorias/{menuCategory}', [MenuCategoryController::class, 'update'])->name('menu-categories.update');
+            Route::delete('/administracao/cardapio/categorias/{menuCategory}', [MenuCategoryController::class, 'destroy'])->name('menu-categories.destroy');
             Route::post('/products/{product}/stock-movements', [StockMovementController::class, 'store'])->name('products.stock-movements.store');
         });
     });

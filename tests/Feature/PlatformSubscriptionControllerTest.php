@@ -209,7 +209,7 @@ class PlatformSubscriptionControllerTest extends TestCase
         $company->subscription()->update([
             'status' => SubscriptionStatus::Trial,
             'trial_ends_at' => '2026-10-15',
-            'monthly_amount_cents' => 19700,
+            'monthly_amount_cents' => 29700,
         ]);
 
         $response = $this->actingAs($owner)->get(route('dashboard'));
@@ -219,10 +219,10 @@ class PlatformSubscriptionControllerTest extends TestCase
             ->get(route('subscription.show'))
             ->assertOk()
             ->assertSee('Seu período gratuito terminou.')
-            ->assertSee('R$ 197');
+            ->assertSee('R$ 297');
         $invoice = $company->subscription->invoices()->sole();
         $this->assertSame('2026-10-16', $invoice->due_date->toDateString());
-        $this->assertSame(19700, $invoice->amount_cents);
+        $this->assertSame(29700, $invoice->amount_cents);
         $this->assertTrue($invoice->generated_automatically);
     }
 
@@ -252,13 +252,13 @@ class PlatformSubscriptionControllerTest extends TestCase
         $company->subscription()->update([
             'status' => SubscriptionStatus::Trial,
             'trial_ends_at' => '2026-10-22',
-            'monthly_amount_cents' => 19700,
+            'monthly_amount_cents' => 29700,
         ]);
 
         $response = $this->actingAs($owner)->get(route('subscription.show'));
 
         $response->assertOk();
-        $response->assertSee('R$ 197,00');
+        $response->assertSee('R$ 297,00');
         $response->assertSee('financeiro@giracomanda.test');
         $response->assertSee('Copiar PIX copia e cola');
         $response->assertSee('QR Code PIX da mensalidade do GiraComanda');
@@ -271,7 +271,7 @@ class PlatformSubscriptionControllerTest extends TestCase
         $company = Company::factory()->create();
         $subscription = Subscription::factory()->for($company)->create([
             'status' => SubscriptionStatus::Trial,
-            'monthly_amount_cents' => 19700,
+            'monthly_amount_cents' => 29700,
             'started_at' => '2026-10-16',
             'trial_ends_at' => '2026-10-22',
         ]);

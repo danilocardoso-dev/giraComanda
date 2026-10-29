@@ -17,7 +17,7 @@ class TrialRegistrationControllerTest extends TestCase
     {
         $this->get(route('home'))
             ->assertOk()
-            ->assertSee('R$ 197')
+            ->assertSee('R$ 297')
             ->assertSee('7 dias grátis')
             ->assertSee('Cada consumo.')
             ->assertSee('Na conta certa.')
@@ -52,7 +52,7 @@ class TrialRegistrationControllerTest extends TestCase
         $this->assertDatabaseHas('subscriptions', [
             'company_id' => $company->id,
             'status' => SubscriptionStatus::Trial->value,
-            'monthly_amount_cents' => 19700,
+            'monthly_amount_cents' => 29700,
             'billing_phone' => '11999998888',
         ]);
         $this->assertSame('2026-10-22', $company->subscription()->sole()->trial_ends_at->toDateString());

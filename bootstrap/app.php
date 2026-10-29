@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsurePasswordIsNotTemporary;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ResolveBranchContext;
+use App\Http\Middleware\ResolveMenuCardContext;
 use App\Http\Middleware\SecurityHeaders;
 use App\Models\PlatformPaymentSetting;
 use Illuminate\Foundation\Application;
@@ -26,11 +27,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'branch.context' => ResolveBranchContext::class,
             'company.admin' => EnsureCompanyAdmin::class,
+            'menu.card' => ResolveMenuCardContext::class,
             'platform.admin' => EnsurePlatformAdmin::class,
             'password.changed' => EnsurePasswordIsNotTemporary::class,
             'role' => EnsureUserHasRole::class,
         ]);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveBranchContext::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, ResolveMenuCardContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontFlash(PlatformPaymentSetting::CREDENTIAL_FIELDS);

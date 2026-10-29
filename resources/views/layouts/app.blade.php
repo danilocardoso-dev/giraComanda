@@ -7,7 +7,7 @@
     <x-favicon />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen" data-menu-orders-pending-url="{{ route('menu-orders.pending') }}">
     @if ($supportMode ?? false)
         <div class="sticky top-0 z-50 flex flex-col gap-3 bg-amber-300 px-5 py-3 text-slate-950 shadow-md sm:flex-row sm:items-center sm:justify-between lg:px-8">
             <div>
@@ -44,6 +44,9 @@
             <nav class="flex flex-1 flex-col gap-1">
                 <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">Visão geral</x-nav-link>
                 <x-nav-link :href="route('tabs.index')" :active="request()->routeIs('tabs.*')">Comandas</x-nav-link>
+                <x-nav-link :href="route('menu-orders.index')" :active="request()->routeIs('menu-orders.*')">
+                    <span class="flex w-full items-center justify-between gap-2">Pedidos do cardápio <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span></span>
+                </x-nav-link>
 
                 @if (auth()->user()->hasRole(\App\UserRole::Admin, \App\UserRole::Cashier))
                     <x-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">Clientes</x-nav-link>
@@ -63,6 +66,7 @@
                     <x-nav-link :href="route('audit.index')" :active="request()->routeIs('audit.*')">Auditoria</x-nav-link>
                     <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">Usuários</x-nav-link>
                     <x-nav-link :href="route('products.index')" :active="request()->routeIs('products.*')">Produtos e estoque</x-nav-link>
+                    <x-nav-link :href="route('menu-settings.edit')" :active="request()->routeIs('menu-settings.*')">Cardápio digital</x-nav-link>
                     <x-nav-link :href="route('settings.edit')" :active="request()->routeIs('settings.*')">Configurações</x-nav-link>
                 @endif
             </nav>
@@ -102,6 +106,7 @@
                             <nav class="flex flex-col gap-1 text-sm font-semibold text-slate-700">
                                 <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('dashboard') }}">Visão geral</a>
                                 <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('tabs.index') }}">Comandas</a>
+                                <a class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('menu-orders.index') }}">Pedidos do cardápio <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span></a>
                                 @if (auth()->user()->hasRole(\App\UserRole::Admin, \App\UserRole::Cashier))
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('customers.index') }}">Clientes</a>
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('receivables.index') }}">Contas a receber</a>
@@ -118,6 +123,7 @@
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('audit.index') }}">Auditoria</a>
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('users.index') }}">Usuários</a>
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('products.index') }}">Produtos e estoque</a>
+                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('menu-settings.edit') }}">Cardápio digital</a>
                                     <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('settings.edit') }}">Configurações</a>
                                 @endif
                                 <form method="POST" action="{{ route('logout') }}">

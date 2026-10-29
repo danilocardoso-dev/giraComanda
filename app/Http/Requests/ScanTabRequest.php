@@ -35,8 +35,12 @@ class ScanTabRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'qr_token' => $this->string('qr_token')->trim()->toString(),
-        ]);
+        $scannedValue = $this->string('qr_token')->trim()->toString();
+
+        if (preg_match('#/cardapio/([0-9a-f-]{36})/?$#i', $scannedValue, $matches) === 1) {
+            $scannedValue = $matches[1];
+        }
+
+        $this->merge(['qr_token' => $scannedValue]);
     }
 }

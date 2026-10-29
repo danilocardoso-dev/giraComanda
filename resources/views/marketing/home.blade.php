@@ -1,8 +1,8 @@
 @php
     $trialDays = (int) config('giracomanda.subscription.trial_days', 7);
-    $monthlyAmount = (int) config('giracomanda.subscription.monthly_amount_cents', 19700) / 100;
+    $monthlyAmount = (int) config('giracomanda.subscription.monthly_amount_cents', 29700) / 100;
     $monthlyAmountFormatted = number_format($monthlyAmount, 0, ',', '.');
-    $yearlyAmount = (int) config('giracomanda.subscription.yearly_amount_cents', 197000) / 100;
+    $yearlyAmount = (int) config('giracomanda.subscription.yearly_amount_cents', 297000) / 100;
     $yearlyAmountFormatted = number_format($yearlyAmount, 0, ',', '.');
     $yearlyEquivalentMonthly = number_format($yearlyAmount / 12, 2, ',', '.');
     $supportWhatsapp = preg_replace('/\D+/', '', (string) config('giracomanda.subscription.support_whatsapp'));
@@ -12,7 +12,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Do QR Code ao recebimento: organize comandas, consumo por pessoa, rateio, caixa e fiado com o GiraComanda. Teste {{ $trialDays }} dias grátis. Planos mensal de R$ {{ $monthlyAmountFormatted }} e anual com 2 meses grátis.">
+    <meta name="description" content="Do QR Code ao recebimento: cardápio digital com pedido pelo celular, comandas, consumo por pessoa, rateio, caixa e fiado com o GiraComanda. Teste {{ $trialDays }} dias grátis. Planos mensal de R$ {{ $monthlyAmountFormatted }} e anual com 2 meses grátis.">
     <title>GiraComanda · Cada consumo na conta certa</title>
     <x-favicon />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -45,7 +45,7 @@
                 <div class="flex flex-col items-start gap-6">
                     <p data-hero-enter="0" class="max-w-sm text-sm leading-6 font-medium tracking-[0.08em] text-brand-200 uppercase">Gestão para restaurantes, lanchonetes e cantinas</p>
                     <h1 id="hero-title" data-hero-enter="1" class="text-[clamp(2rem,10.5vw,2.6rem)] leading-[1.06] font-semibold tracking-[-0.045em] sm:text-6xl lg:text-[clamp(3.1rem,4.6vw,4.25rem)]">Cada consumo.<br>Na conta certa.</h1>
-                    <p data-hero-enter="2" class="max-w-lg text-lg leading-8 text-brand-100 sm:text-xl sm:leading-9">Do cartão com QR Code ao fechamento do caixa: organize o consumo por pessoa, divida a conta e acompanhe cada pagamento, inclusive o fiado.</p>
+                    <p data-hero-enter="2" class="max-w-lg text-lg leading-8 text-brand-100 sm:text-xl sm:leading-9">Do cardápio no celular do cliente ao fechamento do caixa: receba pedidos pelo QR Code do cartão, organize o consumo por pessoa, divida a conta e acompanhe cada pagamento, inclusive o fiado.</p>
                     <div data-hero-enter="3" class="flex w-full flex-col items-start gap-3 pt-1">
                         <a href="{{ route('trial.create') }}" class="landing-cta w-full sm:w-auto">Começar {{ $trialDays }} dias grátis <span aria-hidden="true">→</span></a>
                         <p class="text-sm leading-6 text-brand-200">Sem cartão de crédito. Depois, R$ {{ $monthlyAmountFormatted }}/mês ou plano anual com 2 meses grátis.</p>
@@ -112,10 +112,11 @@
                         <p class="landing-kicker">Não é só mais um PDV</p>
                         <h2 id="features-title" class="landing-heading">Sua operação,<br>em sintonia.</h2>
                     </div>
-                    <p class="landing-copy max-w-lg">QR reutilizável, consumo por pessoa, rateio e fiado detalhado trabalham juntos. Do balcão à gestão, cada registro tem contexto.</p>
+                    <p class="landing-copy max-w-lg">Cardápio com pedido pelo celular, QR reutilizável, consumo por pessoa, rateio e fiado detalhado trabalham juntos. Do pedido à gestão, cada registro tem contexto.</p>
                 </div>
                 <div class="mt-12 divide-y divide-stone-300 border-y border-stone-300 sm:mt-16">
                     @foreach ([
+                        ['Cardápio digital com pedido', 'Para o cliente pedir sem esperar o garçom.', ['O QR Code do cartão abre o cardápio com fotos, descrições e preços no celular do cliente.', 'O pedido chega na tela da equipe com aviso sonoro e, ao ser aceito, entra direto na comanda.', 'O cliente acompanha o próprio consumo e o estoque baixa automaticamente.']],
                         ['Atendimento que flui', 'Para servir, registrar e dividir com clareza.', ['Cartões QR personalizados e leitura pela câmera.', 'Produtos por unidade ou peso e rateio por pessoa.', 'Clientes cadastrados e histórico de consumo.']],
                         ['Financeiro com contexto', 'Para saber o que entrou e o que falta receber.', ['Caixa com abertura, sangria, suprimento e fechamento.', 'Contas a receber, vencimentos e pagamentos parciais.', 'Resumo mensal para impressão e envio assistido pelo WhatsApp.']],
                         ['Gestão que acompanha', 'Para enxergar a operação além do balcão.', ['Produtos, estoque mínimo e movimentações.', 'Relatórios, auditoria, usuários e permissões.', 'Filiais com dados isolados e compartilhamento opcional de clientes e produtos.']],
@@ -182,7 +183,7 @@
                 </div>
 
                 <ul class="mt-12 flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-4 border-t border-white/20 pt-8 text-base text-brand-100">
-                    @foreach (['Comandas e rateio', 'Caixa e contas a receber', 'Estoque e relatórios', 'Usuários e filiais'] as $included)
+                    @foreach (['Cardápio digital com pedido', 'Comandas e rateio', 'Caixa e contas a receber', 'Estoque e relatórios', 'Usuários e filiais'] as $included)
                         <li class="flex items-center gap-2"><span class="text-brand-300" aria-hidden="true">✓</span>{{ $included }}</li>
                     @endforeach
                 </ul>
