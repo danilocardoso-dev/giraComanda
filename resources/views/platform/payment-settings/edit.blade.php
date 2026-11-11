@@ -6,7 +6,7 @@
     <div class="flex flex-col gap-7">
         <section class="flex flex-col gap-3">
             <p class="text-sm font-bold uppercase tracking-[0.12em] text-brand-700">Pagamentos da plataforma</p>
-            <h2 class="text-3xl font-bold tracking-tight text-slate-950">Mercado Pago</h2>
+            <h2 class="text-3xl font-bold tracking-tight text-slate-950">AbacatePay</h2>
             <p class="max-w-3xl text-base leading-7 text-slate-600">Cadastre as credenciais da conta que receberá as assinaturas do GiraComanda. Esta configuração é exclusiva da administração do SaaS.</p>
         </section>
 
@@ -26,7 +26,7 @@
             <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
                 <input type="hidden" name="enabled" value="0">
                 <label class="flex items-start gap-3 font-bold"><input type="checkbox" name="enabled" value="1" @checked(old('enabled', $enabled)) class="mt-1 size-5 accent-brand-700">Habilitar pagamentos online no ambiente selecionado</label>
-                <p class="mt-3 text-sm leading-6">Ative somente após cadastrar Access Token e segredo do webhook. Testes registra a simulação sem quitar mensalidades nem liberar acesso real. Produção permite cobranças reais quando o cliente escolhe pagar. Desativar impede novos checkouts, mas não cancela assinaturas já autorizadas no Mercado Pago.</p>
+                <p class="mt-3 text-sm leading-6">Ative somente após cadastrar a chave de API e o segredo do webhook. Testes registra a simulação sem quitar mensalidades nem liberar acesso real. Produção permite cobranças reais quando o cliente escolhe pagar. Desativar impede novos checkouts, mas não cancela assinaturas já autorizadas no AbacatePay.</p>
                 <x-input-error :messages="$errors->get('enabled')" />
             </section>
 
@@ -57,7 +57,7 @@
                             <div class="rounded-xl bg-brand-50 p-4 text-sm text-brand-950">
                                 <p class="font-bold">URL do webhook · {{ $item['label'] }}</p>
                                 <code class="mt-2 block break-all select-all">{{ $item['webhook_url'] }}</code>
-                                <p class="mt-3 leading-6">No Mercado Pago, cadastre esta URL e marque “Planos e assinaturas” e “Pagamentos (legacy)”. Salve para gerar o segredo e depois cole-o abaixo. O domínio precisa estar acessível por HTTPS.</p>
+                                <p class="mt-3 leading-6">No AbacatePay (Webhooks), cadastre esta URL acrescentando ?webhookSecret=SEU_SEGREDO ao final, com os eventos transparent.* e subscription.*. Informe o mesmo segredo no campo abaixo. O domínio precisa estar acessível por HTTPS.</p>
                             </div>
                             @foreach ($item['credentials'] as $credential)
                                 <div>
@@ -66,7 +66,7 @@
                                         <span class="text-xs font-semibold {{ $credential['configured'] ? 'text-emerald-700' : 'text-slate-500' }}">{{ $credential['configured'] ? 'Credencial salva' : 'Não cadastrada' }}</span>
                                     </div>
                                     <input id="{{ $credential['name'] }}" name="{{ $credential['name'] }}" type="password" maxlength="4096" autocomplete="new-password" autocapitalize="none" spellcheck="false" placeholder="{{ $credential['configured'] ? 'Deixe vazio para manter a credencial' : 'Cole a credencial aqui' }}" aria-describedby="{{ $credential['name'] }}-help" @if ($errors->has($credential['name'])) aria-invalid="true" @endif class="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 placeholder:text-sm placeholder:text-slate-500 focus:border-brand-600 focus:outline-2 focus:outline-offset-2 focus:outline-brand-600">
-                                    <p id="{{ $credential['name'] }}-help" class="mt-2 text-xs leading-5 text-slate-500">{{ $credential['label'] === 'Segredo do webhook' ? 'Disponível na configuração de Webhooks da aplicação no Mercado Pago.' : 'Disponível nas credenciais da aplicação no Mercado Pago Developers.' }}</p>
+                                    <p id="{{ $credential['name'] }}-help" class="mt-2 text-xs leading-5 text-slate-500">{{ match (true) { $credential['label'] === 'Segredo do webhook' => 'Defina um segredo e use o mesmo valor no parâmetro webhookSecret da URL.', str_ends_with($credential['name'], 'public_key') => 'Não utilizada pela integração atual; pode ficar vazia.', default => 'Crie uma chave no painel do AbacatePay, em Integração. Chaves de Dev mode são o ambiente de testes.' } }}</p>
                                     <x-input-error :messages="$errors->get($credential['name'])" />
                                     @if ($credential['configured'])
                                         <label class="mt-3 flex min-h-7 cursor-pointer items-center gap-2 text-sm text-slate-600">
@@ -79,7 +79,7 @@
                             @endforeach
 
                             <div class="border-t border-slate-100 pt-5">
-                                <label for="{{ $item['key'] }}_plan_id" class="block text-sm font-bold text-slate-700">Referência administrativa de plano <span class="font-normal text-slate-500">(não usada no checkout atual)</span></label>
+                                <label for="{{ $item['key'] }}_plan_id" class="block text-sm font-bold text-slate-700">Referência administrativa <span class="font-normal text-slate-500">(não usada no checkout atual)</span></label>
                                 <input id="{{ $item['key'] }}_plan_id" name="{{ $item['key'] }}_plan_id" type="text" maxlength="100" value="{{ old($item['key'].'_plan_id', $item['plan_id']) }}" autocomplete="off" spellcheck="false" aria-describedby="{{ $item['key'] }}-plan-help" class="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-sm text-slate-950 focus:border-brand-600 focus:outline-2 focus:outline-offset-2 focus:outline-brand-600">
                                 <p id="{{ $item['key'] }}-plan-help" class="mt-2 text-xs leading-5 text-slate-500">Referência administrativa opcional. O checkout cria uma assinatura individual por empresa, sem depender do link genérico deste plano, para vincular corretamente os pagamentos.</p>
                                 <x-input-error :messages="$errors->get($item['key'].'_plan_id')" />
@@ -92,7 +92,7 @@
             <div class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-7 md:flex-row md:items-center md:justify-between">
                 <div class="max-w-2xl text-sm leading-6 text-slate-600">
                     <p class="font-bold text-slate-900">Salvar credenciais não inicia cobranças</p>
-                    <p>Pix e cartão recorrente dependem da habilitação acima. O cartão é autorizado no ambiente seguro do Mercado Pago; nenhum dado de cartão fica no GiraComanda. Mantenha o agendador do Laravel ativo no Coolify para recuperar notificações perdidas.</p>
+                    <p>Pix e cartão recorrente dependem da habilitação acima. O cartão é autorizado no ambiente seguro do AbacatePay; nenhum dado de cartão fica no GiraComanda. Mantenha o agendador do Laravel ativo no Coolify para recuperar notificações perdidas.</p>
                     @if ($updatedAt)
                         <p class="mt-2 text-xs">Última atualização: {{ $updatedAt->format('d/m/Y H:i') }}.</p>
                     @endif

@@ -25,7 +25,7 @@ class PlatformInvoicePaymentController extends Controller
             $invoice = SubscriptionInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_if($invoice->paid_at !== null, 422, 'Esta mensalidade já foi paga.');
             abort_if(SubscriptionCheckout::query()->where('subscription_id', $subscription->id)->where('kind', 'card')
-                ->whereNotIn('status', ['cancelled', 'rejected'])->exists(), 422, 'Cancele a recorrência no Mercado Pago antes de registrar uma baixa manual.');
+                ->whereNotIn('status', ['cancelled', 'rejected'])->exists(), 422, 'Cancele a recorrência no AbacatePay antes de registrar uma baixa manual.');
             $settle->handle($subscription, $invoice, Carbon::parse($validated['paid_on'])->endOfDay(), $validated['payment_method'], $request->boolean('reactivate_access'));
             PlatformActivityLog::record(
                 $request,

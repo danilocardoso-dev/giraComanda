@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\BuildSubscriptionPixQrCode;
-use App\Actions\SynchronizeMercadoPago;
+use App\Actions\SynchronizeAbacatePay;
 use App\Actions\SynchronizeSubscriptionInvoices;
 use App\CompanyRole;
 use App\Models\Company;
@@ -20,7 +20,7 @@ class SubscriptionPortalController extends Controller
         Request $request,
         SynchronizeSubscriptionInvoices $synchronizeSubscriptionInvoices,
         BuildSubscriptionPixQrCode $buildSubscriptionPixQrCode,
-        SynchronizeMercadoPago $synchronizeMercadoPago,
+        SynchronizeAbacatePay $synchronizeAbacatePay,
     ): RedirectResponse|View {
         $company = Company::query()
             ->with('subscription')
@@ -50,7 +50,7 @@ class SubscriptionPortalController extends Controller
                         $checkout->update(['remote_id' => $preapprovalId]);
                     }
                     try {
-                        $feedback = $synchronizeMercadoPago->checkout($checkout);
+                        $feedback = $synchronizeAbacatePay->checkout($checkout);
                         if (! session()->has('payment_feedback')) {
                             session()->flash('payment_feedback', $feedback);
                         }

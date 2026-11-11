@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdatePlatformPaymentSettingRequest;
 use App\Models\PlatformActivityLog;
 use App\Models\PlatformPaymentSetting;
-use App\Services\MercadoPagoClient;
+use App\Services\AbacatePayClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class PlatformPaymentSettingController extends Controller
 {
-    public function edit(Request $request, MercadoPagoClient $client): Response
+    public function edit(Request $request, AbacatePayClient $client): Response
     {
         abort_unless($request->user()->active, 403);
 
@@ -81,11 +81,11 @@ class PlatformPaymentSettingController extends Controller
             PlatformActivityLog::record(
                 $request,
                 'payment_settings_updated',
-                'Configuração do Mercado Pago atualizada. Ambiente selecionado: '.PlatformPaymentSetting::ENVIRONMENTS[$settings->environment].'.',
+                'Configuração do AbacatePay atualizada. Ambiente selecionado: '.PlatformPaymentSetting::ENVIRONMENTS[$settings->environment].'.',
             );
         });
 
         return to_route('platform.payment-settings.edit')
-            ->with('success', 'Configurações do Mercado Pago salvas com segurança.');
+            ->with('success', 'Configurações do AbacatePay salvas com segurança.');
     }
 }

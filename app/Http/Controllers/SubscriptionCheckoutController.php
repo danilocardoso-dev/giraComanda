@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CancelSubscriptionCheckout;
 use App\Actions\CreateSubscriptionCheckout;
-use App\Actions\SynchronizeMercadoPago;
+use App\Actions\SynchronizeAbacatePay;
 use App\CompanyRole;
 use App\Models\Company;
 use App\Models\PlatformActivityLog;
@@ -43,11 +43,11 @@ class SubscriptionCheckoutController extends Controller
         }
 
         return to_route('subscription.show')->with('payment_feedback', ['level' => 'info', 'message' => $checkout->kind === 'pix'
-            ? 'QR Code Pix disponibilizado. Nenhum pagamento foi confirmado; aguarde a confirmação do Mercado Pago.'
-            : 'Assinatura localizada no Mercado Pago. Consulte a situação do pagamento; a localização da assinatura não confirma quitação.']);
+            ? 'QR Code Pix disponibilizado. Nenhum pagamento foi confirmado; aguarde a confirmação do AbacatePay.'
+            : 'Assinatura localizada no AbacatePay. Consulte a situação do pagamento; a localização da assinatura não confirma quitação.']);
     }
 
-    public function update(Request $request, SubscriptionCheckout $checkout, SynchronizeMercadoPago $synchronize): RedirectResponse
+    public function update(Request $request, SubscriptionCheckout $checkout, SynchronizeAbacatePay $synchronize): RedirectResponse
     {
         $this->authorizeCheckout($request, $checkout);
         $request->session()->forget(['success', 'payment_feedback']);

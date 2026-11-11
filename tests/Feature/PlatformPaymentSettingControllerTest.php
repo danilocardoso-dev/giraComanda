@@ -79,9 +79,8 @@ class PlatformPaymentSettingControllerTest extends TestCase
         $response = $this->actingAs($admin)->get(route('platform.payment-settings.edit'));
 
         $response->assertOk()
-            ->assertSee('Mercado Pago')
-            ->assertSee('Public Key')
-            ->assertSee('Access Token')
+            ->assertSee('AbacatePay')
+            ->assertSee('Chave de API')
             ->assertSee('Segredo do webhook')
             ->assertSee('Salvar credenciais não inicia cobranças')
             ->assertViewHas('environment', 'test');
@@ -115,9 +114,9 @@ class PlatformPaymentSettingControllerTest extends TestCase
         ]);
 
         $response->assertRedirect(route('platform.payment-settings.edit'))
-            ->assertSessionHas('success', 'Configurações do Mercado Pago salvas com segurança.');
+            ->assertSessionHas('success', 'Configurações do AbacatePay salvas com segurança.');
         $this->assertDatabaseHas('platform_payment_settings', [
-            'provider' => 'mercado_pago',
+            'provider' => 'abacatepay',
             'environment' => 'test',
             'test_plan_id' => 'test-plan-example',
             'production_plan_id' => 'production-plan-example',

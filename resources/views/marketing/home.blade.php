@@ -222,7 +222,7 @@
             <div class="flex flex-col gap-3">
                 <a href="{{ route('home') }}" class="text-xl font-bold tracking-tight text-white">GiraComanda</a>
                 <p class="text-base leading-7 text-brand-100">Do consumo ao recebimento, tudo no mesmo fluxo.</p>
-                <p class="text-sm text-brand-200">© {{ now()->year }} GiraComanda · Danilo Cardoso</p>
+                <p class="text-sm text-brand-200">© {{ now()->year }} GiraComanda · Link Start Labs</p>
             </div>
             <nav class="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-brand-100" aria-label="Links do rodapé">
                 <a href="{{ route('privacy') }}" class="landing-link text-sm hover:text-white">Privacidade</a>

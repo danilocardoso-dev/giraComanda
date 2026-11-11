@@ -15,13 +15,13 @@ class PlatformPaymentSetting extends Model
     /** @use HasFactory<PlatformPaymentSettingFactory> */
     use HasFactory;
 
-    public const PROVIDER = 'mercado_pago';
+    public const PROVIDER = 'abacatepay';
 
     public const ENVIRONMENTS = ['test' => 'Testes', 'production' => 'Produção'];
 
     public const CREDENTIAL_LABELS = [
-        'public_key' => 'Public Key',
-        'access_token' => 'Access Token',
+        'public_key' => 'Chave pública (opcional)',
+        'access_token' => 'Chave de API',
         'webhook_secret' => 'Segredo do webhook',
     ];
 

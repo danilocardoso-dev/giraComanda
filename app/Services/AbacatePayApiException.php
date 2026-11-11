@@ -4,7 +4,7 @@ namespace App\Services;
 
 use RuntimeException;
 
-class MercadoPagoApiException extends RuntimeException
+class AbacatePayApiException extends RuntimeException
 {
     public function __construct(string $message, public readonly ?int $httpStatus = null)
     {

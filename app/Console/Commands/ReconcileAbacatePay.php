@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\SynchronizeMercadoPago;
+use App\Actions\SynchronizeAbacatePay;
 use App\Models\SubscriptionCheckout;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -10,14 +10,14 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-#[Signature('subscriptions:reconcile-mercado-pago {--limit=50 : Máximo de checkouts por execução}')]
+#[Signature('subscriptions:reconcile-abacatepay {--limit=50 : Máximo de checkouts por execução}')]
 #[Description('Consulta pagamentos e recorrências para recuperar notificações perdidas')]
-class ReconcileMercadoPago extends Command
+class ReconcileAbacatePay extends Command
 {
     /**
      * Execute the console command.
      */
-    public function handle(SynchronizeMercadoPago $synchronize): int
+    public function handle(SynchronizeAbacatePay $synchronize): int
     {
         $checkouts = SubscriptionCheckout::query()->where(fn ($query) => $query->whereNotNull('remote_id')->orWhere('status', 'creating'))->where(function ($query): void {
             $query->whereNotIn('status', ['cancelled', 'rejected', 'approved', 'refunded', 'charged_back'])
@@ -32,7 +32,7 @@ class ReconcileMercadoPago extends Command
                 $completed++;
             } catch (Throwable) {
                 $failures++;
-                Log::warning('Falha na conciliação Mercado Pago.', ['checkout_id' => $checkout->id]);
+                Log::warning('Falha na conciliação AbacatePay.', ['checkout_id' => $checkout->id]);
             }
             if (microtime(true) >= $deadline) {
                 break;

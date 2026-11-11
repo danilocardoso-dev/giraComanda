@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
-        $middleware->preventRequestForgery(except: ['webhooks/mercado-pago/test', 'webhooks/mercado-pago/production']);
+        $middleware->preventRequestForgery(except: ['webhooks/abacatepay/test', 'webhooks/abacatepay/production']);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([
             'branch.context' => ResolveBranchContext::class,
@@ -38,6 +38,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontFlash(PlatformPaymentSetting::CREDENTIAL_FIELDS);
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*', 'webhooks/mercado-pago/*') || $request->expectsJson(),
+            fn (Request $request) => $request->is('api/*', 'webhooks/abacatepay/*') || $request->expectsJson(),
         );
     })->create();

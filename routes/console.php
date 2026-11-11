@@ -20,7 +20,7 @@ Schedule::command('subscriptions:sync-invoices')
     ->dailyAt('00:10')
     ->withoutOverlapping(10);
 
-Schedule::command('subscriptions:reconcile-mercado-pago')
+Schedule::command('subscriptions:reconcile-abacatepay')
     ->everyFiveMinutes()
     ->withoutOverlapping(10);
 

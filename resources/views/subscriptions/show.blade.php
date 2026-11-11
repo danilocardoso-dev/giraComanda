@@ -50,7 +50,7 @@
                     @endif
 
                     @if ($onlinePaymentsEnabled && $paymentEnvironment === 'test')
-                        <p class="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-900">Ambiente de teste ativo. Utilize dados e cartões de teste do Mercado Pago.</p>
+                        <p class="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-900">Ambiente de teste ativo. Utilize dados e cartões de teste do AbacatePay (4242 4242 4242 4242).</p>
                     @endif
 
                     @if ($canManageBilling && $onlinePaymentsEnabled && ! $recurrence)
@@ -87,14 +87,14 @@
                             </div>
 
                             <div>
-                                <label for="payer_email" class="text-sm font-bold text-slate-700">E-mail do titular no Mercado Pago</label>
+                                <label for="payer_email" class="text-sm font-bold text-slate-700">E-mail para o comprovante</label>
                                 <input id="payer_email" name="payer_email" type="email" required maxlength="254" value="{{ old('payer_email', $paymentEnvironment === 'test' ? '' : auth()->user()->email) }}" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-950 focus:border-brand-500 focus:ring-brand-500">
-                                <p class="mt-1 text-xs text-slate-500">{{ $paymentEnvironment === 'test' ? 'Conta compradora de teste do Mercado Pago.' : 'E-mail da sua conta Mercado Pago onde o cartão será registrado.' }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ $paymentEnvironment === 'test' ? 'E-mail usado nos avisos da cobrança de teste.' : 'O cartão é informado no ambiente seguro do AbacatePay.' }}</p>
                             </div>
 
                             <label class="flex items-start gap-2.5 text-xs leading-5 text-slate-700">
                                 <input type="checkbox" name="recurring_consent" value="1" required class="mt-0.5 size-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
-                                <span>Autorizo a assinatura recorrente com cartão de crédito no Mercado Pago conforme o plano escolhido, renovável até o cancelamento.</span>
+                                <span>Autorizo a assinatura recorrente com cartão de crédito no AbacatePay conforme o plano escolhido, renovável até o cancelamento.</span>
                             </label>
 
                             <button type="submit" class="w-full rounded-xl bg-warm-500 px-5 py-3.5 text-center font-black text-brand-950 shadow-md transition-colors hover:bg-warm-400">
@@ -117,7 +117,7 @@
                                 <button type="button" data-copy-text="{{ $pixCopyPaste }}" class="mt-4 w-full rounded-xl bg-emerald-800 px-4 py-3 text-sm font-black text-white hover:bg-emerald-900">Copiar PIX copia e cola</button>
                                 <p data-copy-feedback class="mt-2 hidden text-center text-xs font-bold text-emerald-800">Código PIX copiado.</p>
                             @endif
-                            <p class="mt-4 text-sm leading-6 text-emerald-800">A confirmação depende do Mercado Pago. Após pagar, clique em “Consultar no Mercado Pago”.</p>
+                            <p class="mt-4 text-sm leading-6 text-emerald-800">A confirmação depende do AbacatePay. Após pagar, a confirmação chega automaticamente; se demorar, clique em “Consultar no AbacatePay”.</p>
                         </div>
                     @endif
 
@@ -138,13 +138,13 @@
                                 <p class="text-sm text-slate-600">Situação: <strong class="text-slate-900">{{ $checkout->statusLabel() }}</strong></p>
 
                                 @if ($checkout->status === 'pending' && $checkout->checkout_url)
-                                    <a href="{{ $checkout->checkout_url }}" class="rounded-xl bg-brand-800 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-brand-900">Continuar no Mercado Pago</a>
+                                    <a href="{{ $checkout->checkout_url }}" class="rounded-xl bg-brand-800 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-brand-900">Continuar no AbacatePay</a>
                                 @endif
 
                                 <div class="flex flex-wrap gap-4 text-xs font-bold">
                                     <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">
                                         @csrf @method('PUT')
-                                        <button class="text-brand-800 underline hover:text-brand-900">Consultar no Mercado Pago</button>
+                                        <button class="text-brand-800 underline hover:text-brand-900">Consultar no AbacatePay</button>
                                     </form>
                                     <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">
                                         @csrf @method('DELETE')

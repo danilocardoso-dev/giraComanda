@@ -5,8 +5,8 @@ namespace App\Actions;
 use App\Models\PlatformPaymentSetting;
 use App\Models\Subscription;
 use App\Models\SubscriptionCheckout;
-use App\Services\MercadoPagoApiException;
-use App\Services\MercadoPagoClient;
+use App\Services\AbacatePayApiException;
+use App\Services\AbacatePayClient;
 use App\SubscriptionStatus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -15,7 +15,7 @@ use RuntimeException;
 
 class CreateSubscriptionCheckout
 {
-    public function __construct(private MercadoPagoClient $client, private SynchronizeSubscriptionInvoices $invoices, private SynchronizeMercadoPago $synchronize) {}
+    public function __construct(private AbacatePayClient $client, private SynchronizeSubscriptionInvoices $invoices, private SynchronizeAbacatePay $synchronize) {}
 
     public function handle(Subscription $subscription, string $kind, string $email, string $billingCycle = 'monthly'): SubscriptionCheckout
     {
@@ -108,23 +108,23 @@ class CreateSubscriptionCheckout
 
             try {
                 if ($kind === 'pix') {
-                    $data = $this->client->request($checkout->environment, 'POST', '/v1/payments', [
-                        'transaction_amount' => $checkout->amount_cents / 100,
-                        'description' => 'Mensalidade GiraComanda',
-                        'payment_method_id' => 'pix',
-                        'payer' => ['email' => $checkout->payer_email],
-                        'external_reference' => $checkout->uuid,
-                        'notification_url' => $this->client->webhookUrl($checkout->environment),
-                        'date_of_expiration' => $checkout->expires_at->format('Y-m-d\TH:i:s.000P'),
-                    ], $checkout->uuid);
-                    if (blank($data['id'] ?? null) || blank(data_get($data, 'point_of_interaction.transaction_data.qr_code'))) {
-                        throw new RuntimeException('O Mercado Pago ainda não disponibilizou o QR Code. Consulte novamente.');
+                    $data = $this->client->request($checkout->environment, 'POST', '/transparents/create', [
+                        'method' => 'PIX',
+                        'data' => [
+                            'amount' => $checkout->amount_cents,
+                            'description' => 'Mensalidade GiraComanda',
+                            'expiresIn' => 86400,
+                            'metadata' => ['checkoutUuid' => $checkout->uuid],
+                        ],
+                    ]);
+                    if (blank($data['id'] ?? null) || blank($data['brCode'] ?? null)) {
+                        throw new RuntimeException('O AbacatePay ainda não disponibilizou o QR Code. Consulte novamente.');
                     }
                     $checkout->update([
                         'remote_id' => (string) $data['id'],
-                        'status' => $data['status'] ?? 'pending',
-                        'pix_code' => data_get($data, 'point_of_interaction.transaction_data.qr_code'),
-                        'expires_at' => $data['date_of_expiration'] ?? $checkout->expires_at,
+                        'status' => 'pending',
+                        'pix_code' => $data['brCode'],
+                        'expires_at' => $data['expiresAt'] ?? $checkout->expires_at,
                     ]);
                 } else {
                     if ($checkout->wasRecentlyCreated === false) {
@@ -135,34 +135,36 @@ class CreateSubscriptionCheckout
                         $checkout->refresh()->update(['failure_http_status' => null, 'failure_message' => null, 'failed_at' => null]);
 
                         return $checkout;
-                    } else {
-                        $frequency = $billingCycle === 'yearly' ? 12 : 1;
-                        $reason = $billingCycle === 'yearly' ? 'GiraComanda — Assinatura Anual' : 'GiraComanda — Assinatura Mensal';
-
-                        $data = $this->client->request($checkout->environment, 'POST', '/preapproval', [
-                            'reason' => $reason,
-                            'external_reference' => $checkout->uuid,
-                            'payer_email' => $checkout->payer_email,
-                            'auto_recurring' => [
-                                'frequency' => $frequency,
-                                'frequency_type' => 'months',
-                                'transaction_amount' => $checkout->amount_cents / 100,
-                                'currency_id' => 'BRL',
-                            ],
-                            'back_url' => rtrim(config('app.url'), '/').route('subscription.show', [], false),
-                            'status' => 'pending',
-                        ]);
                     }
+                    $yearly = $billingCycle === 'yearly';
+                    $product = $this->client->request($checkout->environment, 'POST', '/products/create', [
+                        'externalId' => $checkout->uuid,
+                        'name' => $yearly ? 'GiraComanda — Assinatura Anual' : 'GiraComanda — Assinatura Mensal',
+                        'price' => $checkout->amount_cents,
+                        'currency' => 'BRL',
+                        'cycle' => $yearly ? 'ANNUALLY' : 'MONTHLY',
+                    ]);
+                    if (blank($product['id'] ?? null)) {
+                        throw new RuntimeException('O AbacatePay não confirmou o produto da assinatura. Tente novamente.');
+                    }
+                    $returnUrl = rtrim(config('app.url'), '/').route('subscription.show', [], false);
+                    $data = $this->client->request($checkout->environment, 'POST', '/subscriptions/create', [
+                        'items' => [['id' => $product['id'], 'quantity' => 1]],
+                        'externalId' => $checkout->uuid,
+                        'methods' => ['CARD'],
+                        'returnUrl' => $returnUrl,
+                        'completionUrl' => $returnUrl,
+                    ]);
                     if (blank($data['id'] ?? null)) {
                         throw new RuntimeException('A recorrência está em verificação. Tente consultar novamente.');
                     }
                     $checkout->update([
                         'remote_id' => (string) $data['id'],
-                        'status' => $data['status'] ?? 'pending',
-                        'checkout_url' => $this->client->checkoutUrl($data['init_point'] ?? ''),
+                        'status' => 'pending',
+                        'checkout_url' => $this->client->checkoutUrl($data['url'] ?? ''),
                     ]);
                 }
-            } catch (MercadoPagoApiException $exception) {
+            } catch (AbacatePayApiException $exception) {
                 $checkout->update([
                     'status' => $checkout->wasRecentlyCreated && $exception->isDefinitiveRejection() ? 'rejected' : $checkout->status,
                     'failure_http_status' => $exception->httpStatus,

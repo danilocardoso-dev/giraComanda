@@ -102,16 +102,16 @@
     </div>
 
     <section class="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 class="text-lg font-black text-slate-950">Mercado Pago · pagamentos e recorrência</h3>
-        <p class="mt-2 text-sm leading-6 text-slate-600">{{ $subscription->paid_until ? 'Período pago até '.$subscription->paid_until->format('d/m/Y H:i').'.' : 'Acesso segue o status administrativo da assinatura.' }} Salvar o status Ativa no formulário acima concede liberação administrativa sem prazo. Para baixa manual, cancele antes qualquer recorrência de cartão. Suspender, cancelar ou mudar o valor da assinatura cancela a recorrência anterior no Mercado Pago.</p>
+        <h3 class="text-lg font-black text-slate-950">AbacatePay · pagamentos e recorrência</h3>
+        <p class="mt-2 text-sm leading-6 text-slate-600">{{ $subscription->paid_until ? 'Período pago até '.$subscription->paid_until->format('d/m/Y H:i').'.' : 'Acesso segue o status administrativo da assinatura.' }} Salvar o status Ativa no formulário acima concede liberação administrativa sem prazo. Para baixa manual, cancele antes qualquer recorrência de cartão. Suspender, cancelar ou mudar o valor da assinatura cancela a recorrência anterior no AbacatePay.</p>
         <div class="mt-5 grid gap-4 md:grid-cols-2">
             @forelse ($gatewayCheckouts as $checkout)
                 <article class="rounded-xl border border-slate-200 p-4 text-sm">
                     <p class="font-bold">{{ $checkout->kind === 'card' ? 'Cartão recorrente' : 'Pix' }} · {{ $checkout->environment }} · {{ $checkout->statusLabel() }}</p>
-                    <p class="mt-2 break-all text-slate-600">ID: {{ $checkout->remote_id ?? 'Nenhum ID confirmado no Mercado Pago' }}</p>
+                    <p class="mt-2 break-all text-slate-600">ID: {{ $checkout->remote_id ?? 'Nenhum ID confirmado no AbacatePay' }}</p>
                     @if ($checkout->failure_message)<p class="mt-2 leading-6 text-red-800">{{ $checkout->failure_message }}</p>@endif
                     <div class="mt-3 flex flex-wrap gap-4">
-                        <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 font-bold text-brand-800 underline">Consultar Mercado Pago</button></form>
+                        <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">@csrf @method('PUT')<button class="min-h-11 font-bold text-brand-800 underline">Consultar AbacatePay</button></form>
                         @if ($checkout->isRecurring() || ($checkout->kind === 'pix' && in_array($checkout->status, ['pending', 'in_process', 'creating'], true)))
                             <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">@csrf @method('DELETE')<button class="min-h-11 font-bold text-red-700 underline">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : 'Cancelar '.($checkout->kind === 'card' ? 'recorrência' : 'Pix') }}</button></form>
                         @endif
@@ -164,7 +164,7 @@
                                         <details><summary class="cursor-pointer font-bold text-emerald-700">Registrar pagamento</summary><form method="POST" action="{{ route('platform.invoices.payments.store', [$company, $invoice]) }}" class="mt-3 grid min-w-56 gap-2">@csrf<input name="paid_on" type="date" value="{{ today()->toDateString() }}" required class="rounded-lg border border-slate-300 px-3 py-2"><select name="payment_method" required class="rounded-lg border border-slate-300 bg-white px-3 py-2">@foreach ($paymentMethods as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select><label class="flex items-start gap-2 rounded-lg bg-emerald-50 p-2 text-xs font-semibold text-emerald-900"><input type="checkbox" name="reactivate_access" value="1" checked class="mt-0.5 size-4 rounded border-emerald-300 text-emerald-700">Reativar o acesso da empresa com esta baixa</label><button class="rounded-lg bg-emerald-700 px-3 py-2 font-bold text-white">Confirmar</button></form></details>
                                     </div>
                                 @else
-                                    <span class="text-xs text-slate-500">{{ $paymentMethods[$invoice->payment_method] ?? ($invoice->payment_method === 'credit_card' ? 'Cartão recorrente · Mercado Pago' : 'Pagamento registrado') }}</span>
+                                    <span class="text-xs text-slate-500">{{ $paymentMethods[$invoice->payment_method] ?? ($invoice->payment_method === 'credit_card' ? 'Cartão recorrente · AbacatePay' : 'Pagamento registrado') }}</span>
                                 @endif
                             </td>
                         </tr>

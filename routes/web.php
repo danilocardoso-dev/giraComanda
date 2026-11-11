@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbacatePayWebhookController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -28,7 +29,6 @@ use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\MenuOrderController;
 use App\Http\Controllers\MenuSettingController;
-use App\Http\Controllers\MercadoPagoWebhookController;
 use App\Http\Controllers\MonthlyClosingController;
 use App\Http\Controllers\MonthlyStatementDeliveryController;
 use App\Http\Controllers\PlatformCompanyController;
@@ -62,8 +62,8 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'marketing.home')->name('home');
 Route::view('/privacidade', 'legal.privacy')->name('privacy');
 Route::view('/termos-de-uso', 'legal.terms')->name('terms');
-Route::post('/webhooks/mercado-pago/{environment}', MercadoPagoWebhookController::class)
-    ->whereIn('environment', ['test', 'production'])->middleware('throttle:180,1')->name('mercado-pago.webhook');
+Route::post('/webhooks/abacatepay/{environment}', AbacatePayWebhookController::class)
+    ->whereIn('environment', ['test', 'production'])->middleware('throttle:180,1')->name('abacatepay.webhook');
 
 Route::prefix('cardapio/{qrToken}')->whereUuid('qrToken')->middleware('menu.card')->name('menu.')->group(function (): void {
     Route::get('/', [PublicMenuController::class, 'show'])->name('show');
