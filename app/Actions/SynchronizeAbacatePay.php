@@ -127,7 +127,12 @@ class SynchronizeAbacatePay
             return;
         }
         $checkout = $this->findRecurrence($environment, null, $billId);
-        if ($checkout === null || $checkout->payments()->exists()) {
+        if ($checkout === null) {
+            Log::warning('Evento AbacatePay sem checkout correspondente.', ['environment' => $environment, 'event' => 'checkout.completed', 'checkout_id' => $billId]);
+
+            return;
+        }
+        if ($checkout->payments()->whereNotNull('applied_at')->exists()) {
             return;
         }
         $checkout->update(['status' => 'authorized', 'cancelled_at' => null]);
@@ -144,6 +149,8 @@ class SynchronizeAbacatePay
         $checkout = $this->findRecurrence($environment, $subscriptionId, data_get($data, 'checkout.id'));
         $paymentId = data_get($data, 'payment.id');
         if ($checkout === null || ! is_string($subscriptionId) || ! is_string($paymentId) || $paymentId === '') {
+            Log::warning('Evento AbacatePay de assinatura não pôde ser aplicado.', ['environment' => $environment, 'subscription_id' => $subscriptionId, 'checkout_id' => data_get($data, 'checkout.id'), 'payment_id' => $paymentId, 'checkout_found' => $checkout !== null]);
+
             return;
         }
         if ($checkout->provider_subscription_id !== null && $checkout->provider_subscription_id !== $subscriptionId) {

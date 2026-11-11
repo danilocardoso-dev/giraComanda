@@ -198,6 +198,26 @@ class AbacatePayBillingTest extends TestCase
         $this->assertTrue($subscription->refresh()->allowsAccess());
     }
 
+    public function test_checkout_completed_settles_even_after_an_earlier_unapplied_attempt(): void
+    {
+        $this->settings();
+        [, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice, ['environment' => 'test', 'remote_id' => 'bill_kYdhPcCddkeRAkbGmh5YmbhE']);
+        SubscriptionGatewayPayment::query()->create(['environment' => 'test', 'remote_id' => 'char_old', 'subscription_checkout_id' => $checkout->id,
+            'status' => 'approved', 'amount_cents' => 29700, 'review_reason' => 'test_payment_not_applied']);
+
+        $this->postJson(route('abacatepay.webhook', ['environment' => 'test']).'?webhookSecret=test-secret', [
+            'event' => 'checkout.completed', 'apiVersion' => 2, 'devMode' => true,
+            'data' => ['checkout' => [
+                'id' => 'bill_kYdhPcCddkeRAkbGmh5YmbhE', 'externalId' => $checkout->uuid, 'amount' => 29700, 'paidAmount' => 29700,
+                'status' => 'PAID', 'methods' => ['CARD'], 'frequency' => 'SUBSCRIPTION', 'updatedAt' => '2026-11-11T16:16:28.457Z',
+            ], 'customer' => ['id' => 'cust_1']],
+        ])->assertOk();
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertTrue($subscription->refresh()->allowsAccess());
+    }
+
     public function test_checkout_completed_settles_the_first_subscription_payment_once(): void
     {
         $this->settings();
