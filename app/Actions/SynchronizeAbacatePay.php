@@ -92,7 +92,9 @@ class SynchronizeAbacatePay
 
         match ($event) {
             'transparent.completed', 'transparent.refunded', 'transparent.disputed', 'transparent.lost' => $this->transparentEvent($environment, $data),
-            'subscription.completed', 'subscription.renewed' => $this->subscriptionPaymentEvent($environment, $data),
+            'checkout.completed' => $this->checkoutCompletedEvent($environment, $data),
+            'subscription.completed' => $this->subscriptionPaymentEvent($environment, $data, true),
+            'subscription.renewed' => $this->subscriptionPaymentEvent($environment, $data, false),
             'subscription.cancelled' => $this->subscriptionCancelledEvent($environment, $data),
             'subscription.payment_failed' => Log::warning('Cobrança recorrente AbacatePay falhou.', ['environment' => $environment, 'subscription_id' => data_get($data, 'subscription.id'), 'retry' => data_get($data, 'retryNumber')]),
             default => null,
@@ -113,7 +115,30 @@ class SynchronizeAbacatePay
         $this->transparent($environment, $charge, null);
     }
 
-    private function subscriptionPaymentEvent(string $environment, array $data): void
+    /**
+     * First payment of a subscription checkout. Used when it arrives before (or without) subscription.completed.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function checkoutCompletedEvent(string $environment, array $data): void
+    {
+        $billId = data_get($data, 'checkout.id');
+        if (data_get($data, 'checkout.frequency') !== 'SUBSCRIPTION' || data_get($data, 'checkout.status') !== 'PAID' || ! is_string($billId)) {
+            return;
+        }
+        $checkout = $this->findRecurrence($environment, null, $billId);
+        if ($checkout === null || $checkout->payments()->exists()) {
+            return;
+        }
+        $checkout->update(['status' => 'authorized', 'cancelled_at' => null]);
+
+        $amount = $this->cents(data_get($data, 'checkout.paidAmount') ?? data_get($data, 'checkout.amount') ?? 0);
+        $paidAt = Carbon::parse(data_get($data, 'checkout.updatedAt') ?? now());
+        $this->applyPayment($environment, $checkout, $billId, $amount, 'approved', $paidAt);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function subscriptionPaymentEvent(string $environment, array $data, bool $first): void
     {
         $subscriptionId = data_get($data, 'subscription.id');
         $checkout = $this->findRecurrence($environment, $subscriptionId, data_get($data, 'checkout.id'));
@@ -126,9 +151,14 @@ class SynchronizeAbacatePay
         }
         $checkout->update(['provider_subscription_id' => $subscriptionId, 'status' => 'authorized', 'cancelled_at' => null]);
 
+        // The first payment may already have been applied from checkout.completed, which identifies it by the bill id.
+        if ($first && $checkout->payments()->where('remote_id', $checkout->remote_id)->whereNotNull('applied_at')->exists()) {
+            return;
+        }
+
         $amount = $this->cents(data_get($data, 'payment.paidAmount') ?? data_get($data, 'payment.amount') ?? 0);
         $paidAt = Carbon::parse(data_get($data, 'payment.updatedAt') ?? data_get($data, 'payment.createdAt') ?? now());
-        $status = data_get($data, 'payment.status') === 'PAID' ? 'approved' : 'pending';
+        $status = in_array(data_get($data, 'payment.status'), ['PAID', 'APPROVED'], true) ? 'approved' : 'pending';
         $this->applyPayment($environment, $checkout, $paymentId, $amount, $status, $paidAt);
     }
 
@@ -260,11 +290,6 @@ class SynchronizeAbacatePay
                 return;
             }
             $payment->update(['approved_at' => $paidAt]);
-            if ($environment === 'test' && ! config('giracomanda.subscription.allow_test_settle', false)) {
-                $payment->update(['review_reason' => 'test_payment_not_applied']);
-
-                return;
-            }
             $invoice = SubscriptionInvoice::query()->lockForUpdate()->findOrFail($checkout->subscription_invoice_id);
 
             if ($checkout->kind === 'card' && $subscription->status !== SubscriptionStatus::Trial && ! $invoice->reference_month->isSameMonth($paidAt)) {
@@ -318,9 +343,6 @@ class SynchronizeAbacatePay
     private function feedback(SubscriptionCheckout $checkout): array
     {
         $payment = $checkout->payments()->with('invoice')->latest('id')->first();
-        if ($payment?->status === 'approved' && $payment->review_reason === 'test_payment_not_applied') {
-            return ['level' => 'info', 'message' => 'Pagamento de teste confirmado no AbacatePay. É uma simulação: nenhuma mensalidade real foi quitada e o acesso não foi liberado.'];
-        }
         if ($payment?->review_reason) {
             return ['level' => 'warning', 'message' => 'O pagamento '.$payment->remote_id.' exige revisão administrativa. Esta consulta não confirma liberação do acesso. Confira o histórico no painel SaaS.'];
         }

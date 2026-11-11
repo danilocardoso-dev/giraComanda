@@ -24,10 +24,8 @@
             @method('PUT')
 
             <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
-                <input type="hidden" name="enabled" value="0">
-                <label class="flex items-start gap-3 font-bold"><input type="checkbox" name="enabled" value="1" @checked(old('enabled', $enabled)) class="mt-1 size-5 accent-brand-700">Habilitar pagamentos online no ambiente selecionado</label>
-                <p class="mt-3 text-sm leading-6">Ative somente após cadastrar a chave de API e o segredo do webhook. Testes registra a simulação sem quitar mensalidades nem liberar acesso real. Produção permite cobranças reais quando o cliente escolhe pagar. Desativar impede novos checkouts, mas não cancela assinaturas já autorizadas no AbacatePay.</p>
-                <x-input-error :messages="$errors->get('enabled')" />
+                <p class="font-bold">Os pagamentos online ficam ativos no ambiente selecionado assim que a chave de API e o segredo do webhook estiverem salvos.</p>
+                <p class="mt-3 text-sm leading-6">Testes registra a simulação sem quitar mensalidades nem liberar acesso real. Produção permite cobranças reais quando o cliente escolhe pagar. Para parar novos checkouts, remova a chave de API do ambiente; isso não cancela assinaturas já autorizadas no AbacatePay.</p>
             </section>
 
             <section class="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-7 md:grid-cols-[1fr_auto] md:items-center">

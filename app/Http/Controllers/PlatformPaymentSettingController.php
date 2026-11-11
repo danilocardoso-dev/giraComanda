@@ -45,7 +45,6 @@ class PlatformPaymentSettingController extends Controller
             'environment' => $settings?->environment ?? 'test',
             'environments' => $environments,
             'updatedAt' => $settings?->updated_at,
-            'enabled' => $settings?->enabled ?? false,
         ])->header('Cache-Control', 'no-store, private');
     }
 
@@ -58,7 +57,6 @@ class PlatformPaymentSettingController extends Controller
                 'provider' => PlatformPaymentSetting::PROVIDER,
             ]);
             $settings->environment = $validated['environment'];
-            $settings->enabled = $request->boolean('enabled');
 
             foreach (PlatformPaymentSetting::CREDENTIAL_FIELDS as $field) {
                 if ($request->boolean('remove_'.$field)) {

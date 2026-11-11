@@ -117,7 +117,7 @@
                                 <button type="button" data-copy-text="{{ $pixCopyPaste }}" class="mt-4 w-full rounded-xl bg-emerald-800 px-4 py-3 text-sm font-black text-white hover:bg-emerald-900">Copiar PIX copia e cola</button>
                                 <p data-copy-feedback class="mt-2 hidden text-center text-xs font-bold text-emerald-800">Código PIX copiado.</p>
                             @endif
-                            <p class="mt-4 text-sm leading-6 text-emerald-800">A confirmação depende do AbacatePay. Após pagar, a confirmação chega automaticamente; se demorar, clique em “Consultar no AbacatePay”.</p>
+                            <p class="mt-4 text-sm leading-6 text-emerald-800">A confirmação depende do AbacatePay. Após pagar, a confirmação chega automaticamente.</p>
                         </div>
                     @endif
 
@@ -142,10 +142,6 @@
                                 @endif
 
                                 <div class="flex flex-wrap gap-4 text-xs font-bold">
-                                    <form method="POST" action="{{ route('subscription.checkouts.update', $checkout) }}">
-                                        @csrf @method('PUT')
-                                        <button class="text-brand-800 underline hover:text-brand-900">Consultar no AbacatePay</button>
-                                    </form>
                                     <form method="POST" action="{{ route('subscription.checkouts.destroy', $checkout) }}">
                                         @csrf @method('DELETE')
                                         <button class="text-red-700 underline hover:text-red-800">{{ ! $checkout->remote_id ? 'Encerrar tentativa local' : 'Cancelar próximas cobranças' }}</button>

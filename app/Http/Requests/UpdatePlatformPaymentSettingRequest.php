@@ -5,7 +5,6 @@ namespace App\Http\Requests;
 use App\Models\PlatformPaymentSetting;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class UpdatePlatformPaymentSettingRequest extends FormRequest
 {
@@ -26,7 +25,6 @@ class UpdatePlatformPaymentSettingRequest extends FormRequest
     {
         $rules = [
             'environment' => ['required', Rule::in(array_keys(PlatformPaymentSetting::ENVIRONMENTS))],
-            'enabled' => ['sometimes', 'boolean'],
         ];
 
         foreach (PlatformPaymentSetting::CREDENTIAL_FIELDS as $field) {
@@ -39,22 +37,6 @@ class UpdatePlatformPaymentSettingRequest extends FormRequest
         }
 
         return $rules;
-    }
-
-    public function after(): array
-    {
-        return [function (Validator $validator): void {
-            if ($validator->errors()->isNotEmpty() || ! $this->boolean('enabled')) {
-                return;
-            }
-            $settings = PlatformPaymentSetting::query()->where('provider', PlatformPaymentSetting::PROVIDER)->first();
-            foreach (['access_token', 'webhook_secret'] as $key) {
-                $field = $this->input('environment').'_'.$key;
-                if ($this->boolean('remove_'.$field) || (blank($this->input($field)) && blank($settings?->getAttribute($field)))) {
-                    $validator->errors()->add($field, 'Cadastre esta credencial antes de habilitar os pagamentos.');
-                }
-            }
-        }];
     }
 
     /** @return array<string, string> */

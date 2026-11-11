@@ -42,7 +42,7 @@ class PlatformPaymentSetting extends Model
 
     public function ready(): bool
     {
-        return $this->enabled && filled($this->getAttribute($this->environment.'_access_token'))
+        return filled($this->getAttribute($this->environment.'_access_token'))
             && filled($this->getAttribute($this->environment.'_webhook_secret'));
     }
 }

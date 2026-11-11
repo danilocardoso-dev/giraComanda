@@ -9,7 +9,6 @@
         $nextInvoice = $invoices->filter(fn ($invoice) => $invoice->paid_at === null)->sortBy('due_date')->first();
         $statusLabel = $subscription->statusLabel();
         $reviewLabels = [
-            'test_payment_not_applied' => 'Simulação confirmada, sem baixa real.',
             'refund_or_chargeback' => 'Estorno ou contestação: revise o acesso e a mensalidade.',
             'amount_currency_or_method_mismatch' => 'Valor, moeda ou forma de pagamento divergente.',
             'invoice_already_paid_or_changed' => 'Mensalidade já paga ou alterada: confira possível pagamento em duplicidade.',

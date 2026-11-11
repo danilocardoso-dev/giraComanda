@@ -50,9 +50,9 @@ class AbacatePayBillingTest extends TestCase
         $this->get(route('subscription.show'))->assertOk()->assertSee('Copiar PIX copia e cola')->assertSee('000201-realistic-test-pix');
     }
 
-    public function test_checkout_is_unavailable_without_enabled_configuration(): void
+    public function test_checkout_is_unavailable_without_configured_credentials(): void
     {
-        $this->settings(['enabled' => false]);
+        $this->settings(['production_access_token' => null]);
         [$owner] = $this->customer();
         Http::preventStrayRequests();
 
@@ -182,7 +182,7 @@ class AbacatePayBillingTest extends TestCase
         $this->assertSame('amount_currency_or_method_mismatch', SubscriptionGatewayPayment::query()->sole()->review_reason);
     }
 
-    public function test_test_environment_payment_is_recorded_but_never_settles(): void
+    public function test_test_environment_payment_settles_the_invoice(): void
     {
         $this->settings();
         [, $subscription, $invoice] = $this->customer();
@@ -194,8 +194,37 @@ class AbacatePayBillingTest extends TestCase
 
         $this->webhook('transparent.completed', ['transparent' => ['id' => 'pix_char_123']], environment: 'test', devMode: true)->assertOk();
 
-        $this->assertNull($invoice->refresh()->paid_at);
-        $this->assertSame('test_payment_not_applied', SubscriptionGatewayPayment::query()->sole()->review_reason);
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertTrue($subscription->refresh()->allowsAccess());
+    }
+
+    public function test_checkout_completed_settles_the_first_subscription_payment_once(): void
+    {
+        $this->settings();
+        [, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice);
+        $bill = ['id' => 'bill_123', 'frequency' => 'SUBSCRIPTION', 'status' => 'PAID', 'amount' => 29700, 'paidAmount' => 29700, 'updatedAt' => now()->toIso8601String()];
+
+        $this->webhook('checkout.completed', ['checkout' => $bill])->assertOk();
+        $this->webhook('subscription.completed', $this->subscriptionPayload($checkout, 'char_1'))->assertOk();
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertTrue($subscription->refresh()->allowsAccess());
+        $this->assertSame('subs_123', $checkout->refresh()->provider_subscription_id);
+        $this->assertSame(1, SubscriptionGatewayPayment::query()->count());
+    }
+
+    public function test_card_payment_with_approved_status_settles_the_invoice(): void
+    {
+        $this->settings();
+        [, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice);
+        $payload = $this->subscriptionPayload($checkout, 'char_1');
+        $payload['payment']['status'] = 'APPROVED';
+
+        $this->webhook('subscription.completed', $payload)->assertOk();
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
     }
 
     public function test_dev_mode_event_is_ignored_in_production(): void
