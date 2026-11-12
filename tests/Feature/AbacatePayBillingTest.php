@@ -236,6 +236,25 @@ class AbacatePayBillingTest extends TestCase
         $this->assertTrue($subscription->refresh()->allowsAccess());
     }
 
+    public function test_trial_payment_settles_even_when_another_invoice_exists_in_the_payment_month(): void
+    {
+        $this->settings();
+        [, $subscription] = $this->customer();
+        $invoice = SubscriptionInvoice::factory()->for($subscription)->create([
+            'amount_cents' => 29700, 'due_date' => today(), 'generated_automatically' => true,
+            'reference_month' => today()->addMonth()->startOfMonth()->toDateString(),
+        ]);
+        $checkout = $this->card($subscription, $invoice);
+
+        $this->webhook('checkout.completed', ['checkout' => [
+            'id' => 'bill_123', 'frequency' => 'SUBSCRIPTION', 'status' => 'PAID', 'amount' => 29700, 'paidAmount' => 29700, 'updatedAt' => now()->toIso8601String(),
+        ]])->assertOk();
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertTrue($subscription->refresh()->allowsAccess());
+        $this->assertNull($checkout->payments()->first()->review_reason);
+    }
+
     public function test_checkout_completed_settles_the_first_subscription_payment_once(): void
     {
         $this->settings();

@@ -313,13 +313,6 @@ class SynchronizeAbacatePay
                 ]);
             }
             $payment->update(['subscription_invoice_id' => $invoice->id]);
-            if ($subscription->status === SubscriptionStatus::Trial && $invoice->generated_automatically
-                && ! $invoice->reference_month->isSameMonth($paidAt)
-                && $subscription->invoices()->whereDate('reference_month', $paidAt->copy()->startOfMonth())->whereKeyNot($invoice->id)->exists()) {
-                $this->review($payment, $subscription, 'conflicting_billing_cycle');
-
-                return;
-            }
             if ($invoice->paid_at !== null || $invoice->amount_cents !== $amount) {
                 $this->review($payment, $subscription, 'invoice_already_paid_or_changed');
 

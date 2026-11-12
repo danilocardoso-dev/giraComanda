@@ -25,7 +25,8 @@ class SettleSubscriptionInvoice
 
         $wasTrial = $subscription->status === SubscriptionStatus::Trial;
         if ($wasTrial && $automatic && $invoice->generated_automatically
-            && ! $invoice->reference_month->isSameMonth($paidAt)) {
+            && ! $invoice->reference_month->isSameMonth($paidAt)
+            && ! $subscription->invoices()->whereDate('reference_month', $paidAt->copy()->startOfMonth())->whereKeyNot($invoice->id)->exists()) {
             $invoice->update(['reference_month' => $paidAt->copy()->startOfMonth(), 'due_date' => $paidAt->toDateString()]);
         }
         $periodStart = $automatic || $subscription->paid_until !== null ? $paidAt->copy() : $invoice->due_date->copy();
