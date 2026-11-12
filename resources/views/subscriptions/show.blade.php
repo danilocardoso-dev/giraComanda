@@ -8,7 +8,12 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-brand-950 text-white">
-    <main class="mx-auto flex min-h-screen max-w-6xl items-center px-5 py-12 sm:px-8">
+    @php
+        $stateKey = md5(json_encode([$subscription?->status?->value, $subscription?->paid_until?->toIso8601String(), $checkouts->map(fn ($item) => [$item->id, $item->status])->all()]));
+        $waitingPayment = $checkouts->contains(fn ($item) => $item->status === 'pending'
+            || ($item->status === 'authorized' && ! $item->payments()->whereNotNull('applied_at')->exists()));
+    @endphp
+    <main data-state="{{ $stateKey }}" @if ($waitingPayment) data-waiting-payment @endif class="mx-auto flex min-h-screen max-w-6xl items-center px-5 py-12 sm:px-8">
         <div class="grid w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl lg:grid-cols-[1fr_0.9fr]">
             <section class="p-7 sm:p-10 lg:p-14">
                 <div class="flex items-center gap-3">
@@ -167,5 +172,24 @@
             </aside>
         </div>
     </main>
+    @if ($waitingPayment)
+        <script>
+            (function () {
+                var current = document.querySelector('main').dataset.state;
+                var attempts = 0;
+                var timer = setInterval(function () {
+                    if (document.hidden) { return; }
+                    if (++attempts > 90) { clearInterval(timer); return; }
+                    fetch(window.location.pathname, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function (response) { return response.ok ? response.text() : ''; })
+                        .then(function (html) {
+                            var match = html.match(/data-state="([a-f0-9]+)"/);
+                            if (match && match[1] !== current) { window.location.reload(); }
+                        })
+                        .catch(function () {});
+                }, 4000);
+            })();
+        </script>
+    @endif
 </body>
 </html>

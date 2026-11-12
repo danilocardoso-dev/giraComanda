@@ -255,6 +255,25 @@ class AbacatePayBillingTest extends TestCase
         $this->assertNull($checkout->payments()->first()->review_reason);
     }
 
+    public function test_portal_polls_while_payment_is_pending_and_stops_after_settlement(): void
+    {
+        $this->settings();
+        [$owner, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice);
+
+        $pending = $this->actingAs($owner)->get(route('subscription.show'))->assertOk()->assertSee('data-waiting-payment', false);
+        preg_match('/data-state="([a-f0-9]+)"/', $pending->getContent(), $before);
+
+        $this->webhook('checkout.completed', ['checkout' => [
+            'id' => 'bill_123', 'frequency' => 'SUBSCRIPTION', 'status' => 'PAID', 'amount' => 29700, 'paidAmount' => 29700, 'updatedAt' => now()->toIso8601String(),
+        ]])->assertOk();
+        $this->webhook('subscription.cancelled', ['subscription' => ['id' => 'subs_123']]);
+
+        $settled = $this->get(route('subscription.show'))->assertOk()->assertDontSee('data-waiting-payment', false);
+        preg_match('/data-state="([a-f0-9]+)"/', $settled->getContent(), $after);
+        $this->assertNotSame($before[1], $after[1]);
+    }
+
     public function test_checkout_completed_settles_the_first_subscription_payment_once(): void
     {
         $this->settings();

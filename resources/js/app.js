@@ -689,3 +689,64 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMixedPayments();
     });
 });
+
+const setupLogoutConfirmation = () => {
+    const isLogoutForm = (form) => {
+        try {
+            return form instanceof HTMLFormElement
+                && form.method.toLowerCase() === 'post'
+                && new URL(form.action, window.location.origin).pathname === '/logout';
+        } catch {
+            return false;
+        }
+    };
+
+    let dialog = null;
+    let pendingForm = null;
+
+    const buildDialog = () => {
+        const element = document.createElement('dialog');
+        element.setAttribute('aria-labelledby', 'logout-confirm-title');
+        element.className = 'm-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white p-6 text-slate-900 shadow-2xl backdrop:bg-black/60';
+        element.innerHTML = `
+            <h2 id="logout-confirm-title" class="text-lg font-black">Sair do sistema?</h2>
+            <p class="mt-2 text-sm text-slate-600">Tem certeza que deseja encerrar a sua sessão?</p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" data-logout-cancel class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Cancelar</button>
+                <button type="button" data-logout-confirm class="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800">Sim, sair</button>
+            </div>`;
+        element.querySelector('[data-logout-cancel]').addEventListener('click', () => element.close());
+        element.querySelector('[data-logout-confirm]').addEventListener('click', () => {
+            const form = pendingForm;
+
+            element.close();
+            pendingForm = null;
+            form?.submit();
+        });
+        element.addEventListener('click', (event) => {
+            if (event.target === element) {
+                element.close();
+            }
+        });
+        element.addEventListener('close', () => {
+            pendingForm = null;
+        });
+        document.body.appendChild(element);
+
+        return element;
+    };
+
+    document.addEventListener('submit', (event) => {
+        if (! isLogoutForm(event.target) || typeof HTMLDialogElement === 'undefined') {
+            return;
+        }
+
+        event.preventDefault();
+        pendingForm = event.target;
+        dialog ??= buildDialog();
+        dialog.showModal();
+        dialog.querySelector('[data-logout-cancel]').focus();
+    });
+};
+
+setupLogoutConfirmation();

@@ -21,8 +21,56 @@
             </form>
         </div>
     @endif
+    @php
+        $navUser = auth()->user();
+        $isNavAdmin = $navUser->hasRole(\App\UserRole::Admin);
+        $hasFinanceAccess = $navUser->hasRole(\App\UserRole::Admin, \App\UserRole::Cashier);
+        $navigation = [
+            ['label' => 'Visão geral', 'route' => 'dashboard', 'active' => 'dashboard'],
+            ['label' => 'Atendimento', 'items' => [
+                ['label' => 'Comandas', 'route' => 'tabs.index', 'active' => 'tabs.*'],
+                ['label' => 'Pedidos do cardápio', 'route' => 'menu-orders.index', 'active' => 'menu-orders.*', 'badge' => true],
+                ['label' => 'Cartões', 'route' => 'cards.index', 'active' => 'cards.*', 'visible' => $hasFinanceAccess],
+            ]],
+            ['label' => 'Clientes e financeiro', 'items' => [
+                ['label' => 'Clientes', 'route' => 'customers.index', 'active' => 'customers.*'],
+                ['label' => 'Contas a receber', 'route' => 'receivables.index', 'active' => 'receivables.*'],
+                ['label' => 'Fechamento mensal', 'route' => 'monthly-closing.index', 'active' => 'monthly-closing.*'],
+                ['label' => 'Movimento do caixa', 'route' => 'cash.index', 'active' => 'cash.*'],
+            ], 'visible' => $hasFinanceAccess],
+            ['label' => 'Catálogo', 'items' => [
+                ['label' => 'Produtos e estoque', 'route' => 'products.index', 'active' => 'products.*'],
+                ['label' => 'Cardápio digital', 'route' => 'menu-settings.edit', 'active' => 'menu-settings.*'],
+            ], 'visible' => $isNavAdmin],
+            ['label' => 'Gestão', 'items' => [
+                ['label' => 'Relatórios', 'route' => 'reports.index', 'active' => 'reports.*'],
+                ['label' => 'Usuários', 'route' => 'users.index', 'active' => 'users.*'],
+                ['label' => 'Auditoria', 'route' => 'audit.index', 'active' => 'audit.*'],
+            ], 'visible' => $isNavAdmin],
+            ['label' => 'Empresa', 'items' => [
+                ['label' => 'Empresa e filiais', 'route' => 'company-branches.index', 'active' => 'company-branches.*', 'visible' => $isCompanyAdmin],
+                ['label' => 'Assinatura', 'route' => 'subscription.show', 'active' => 'subscription.*', 'visible' => $isCompanyAdmin],
+                ['label' => 'Configurações', 'route' => 'settings.edit', 'active' => 'settings.*'],
+            ], 'visible' => $isNavAdmin],
+        ];
+        $navigation = collect($navigation)
+            ->filter(fn (array $entry): bool => $entry['visible'] ?? true)
+            ->map(function (array $entry): array {
+                if (isset($entry['items'])) {
+                    $entry['items'] = collect($entry['items'])->filter(fn (array $item): bool => $item['visible'] ?? true)->values()->all();
+                    $entry['isActive'] = collect($entry['items'])->contains(fn (array $item): bool => request()->routeIs($item['active']));
+                    $entry['hasBadge'] = collect($entry['items'])->contains(fn (array $item): bool => $item['badge'] ?? false);
+                } else {
+                    $entry['isActive'] = request()->routeIs($entry['active']);
+                }
+
+                return $entry;
+            })
+            ->filter(fn (array $entry): bool => ! isset($entry['items']) || $entry['items'] !== [])
+            ->values();
+    @endphp
     <div class="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
-        <aside class="hidden min-h-screen bg-brand-900 px-5 py-6 text-white lg:flex lg:flex-col">
+        <aside class="hidden bg-brand-900 px-5 py-6 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:self-start">
             <a href="{{ route('dashboard') }}" class="mb-10 block px-2" aria-label="Ir para a visão geral">
                 <x-brand-logo size="sm" inverted />
                 <div class="ml-[3.25rem] mt-1 text-xs text-brand-200">{{ $currentCompany->name }}</div>
@@ -41,37 +89,42 @@
                 @endif
             </div>
 
-            <nav class="flex flex-1 flex-col gap-1">
-                <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">Visão geral</x-nav-link>
-                <x-nav-link :href="route('tabs.index')" :active="request()->routeIs('tabs.*')">Comandas</x-nav-link>
-                <x-nav-link :href="route('menu-orders.index')" :active="request()->routeIs('menu-orders.*')">
-                    <span class="flex w-full items-center justify-between gap-2">Pedidos do cardápio <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span></span>
-                </x-nav-link>
-
-                @if (auth()->user()->hasRole(\App\UserRole::Admin, \App\UserRole::Cashier))
-                    <x-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">Clientes</x-nav-link>
-                    <x-nav-link :href="route('receivables.index')" :active="request()->routeIs('receivables.*')">Contas a receber</x-nav-link>
-                    <x-nav-link :href="route('monthly-closing.index')" :active="request()->routeIs('monthly-closing.*')">Fechamento mensal</x-nav-link>
-                    <x-nav-link :href="route('cash.index')" :active="request()->routeIs('cash.*')">Movimento do caixa</x-nav-link>
-                    <x-nav-link :href="route('cards.index')" :active="request()->routeIs('cards.*')">Cartões</x-nav-link>
-                @endif
-
-                @if (auth()->user()->hasRole(\App\UserRole::Admin))
-                    <div class="mb-2 mt-7 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">Administração</div>
-                    <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">Relatórios</x-nav-link>
-                    @if ($isCompanyAdmin)
-                        <x-nav-link :href="route('company-branches.index')" :active="request()->routeIs('company-branches.*')">Empresa e filiais</x-nav-link>
-                        <x-nav-link :href="route('subscription.show')" :active="request()->routeIs('subscription.*')">Assinatura</x-nav-link>
+            <nav class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Menu principal">
+                @foreach ($navigation as $entry)
+                    @if (isset($entry['items']))
+                        <details class="group" @if ($entry['isActive']) open @endif>
+                            <summary @class([
+                                'flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-white/8 hover:text-white [&::-webkit-details-marker]:hidden',
+                                'text-white' => $entry['isActive'],
+                                'text-brand-100' => ! $entry['isActive'],
+                            ])>
+                                <span>{{ $entry['label'] }}</span>
+                                <span class="flex items-center gap-2">
+                                    @if ($entry['hasBadge'])
+                                        <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950 group-open:hidden">0</span>
+                                    @endif
+                                    <svg class="size-4 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+                                </span>
+                            </summary>
+                            <div class="ml-4 mt-1 flex flex-col gap-1 border-l border-white/10 pl-3">
+                                @foreach ($entry['items'] as $item)
+                                    <x-nav-link :href="route($item['route'])" :active="request()->routeIs($item['active'])">
+                                        @if ($item['badge'] ?? false)
+                                            <span class="flex w-full items-center justify-between gap-2">{{ $item['label'] }} <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span></span>
+                                        @else
+                                            {{ $item['label'] }}
+                                        @endif
+                                    </x-nav-link>
+                                @endforeach
+                            </div>
+                        </details>
+                    @else
+                        <x-nav-link :href="route($entry['route'])" :active="$entry['isActive']">{{ $entry['label'] }}</x-nav-link>
                     @endif
-                    <x-nav-link :href="route('audit.index')" :active="request()->routeIs('audit.*')">Auditoria</x-nav-link>
-                    <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">Usuários</x-nav-link>
-                    <x-nav-link :href="route('products.index')" :active="request()->routeIs('products.*')">Produtos e estoque</x-nav-link>
-                    <x-nav-link :href="route('menu-settings.edit')" :active="request()->routeIs('menu-settings.*')">Cardápio digital</x-nav-link>
-                    <x-nav-link :href="route('settings.edit')" :active="request()->routeIs('settings.*')">Configurações</x-nav-link>
-                @endif
+                @endforeach
             </nav>
 
-            <div class="rounded-2xl bg-white/8 p-4">
+            <div class="mt-4 rounded-2xl bg-white/8 p-4">
                 <div class="text-sm font-semibold">{{ auth()->user()->name }}</div>
                 <div class="mt-1 text-xs text-brand-200">{{ auth()->user()->effectiveRole()->label() }}</div>
                 <form method="POST" action="{{ route('logout') }}" class="mt-4">
@@ -103,29 +156,29 @@
                     <details class="relative lg:hidden">
                         <summary class="cursor-pointer list-none rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white">Menu</summary>
                         <div class="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-brand-100 bg-white p-3 shadow-xl">
-                            <nav class="flex flex-col gap-1 text-sm font-semibold text-slate-700">
-                                <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('dashboard') }}">Visão geral</a>
-                                <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('tabs.index') }}">Comandas</a>
-                                <a class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('menu-orders.index') }}">Pedidos do cardápio <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span></a>
-                                @if (auth()->user()->hasRole(\App\UserRole::Admin, \App\UserRole::Cashier))
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('customers.index') }}">Clientes</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('receivables.index') }}">Contas a receber</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('monthly-closing.index') }}">Fechamento mensal</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('cash.index') }}">Movimento do caixa</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('cards.index') }}">Cartões</a>
-                                @endif
-                                @if (auth()->user()->hasRole(\App\UserRole::Admin))
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('reports.index') }}">Relatórios</a>
-                                    @if ($isCompanyAdmin)
-                                        <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('company-branches.index') }}">Empresa e filiais</a>
-                                        <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('subscription.show') }}">Assinatura</a>
+                            <nav class="flex max-h-[70vh] flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-sm font-semibold text-slate-700">
+                                @foreach ($navigation as $entry)
+                                    @if (isset($entry['items']))
+                                        <details class="group" @if ($entry['isActive']) open @endif>
+                                            <summary class="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 hover:bg-brand-50 [&::-webkit-details-marker]:hidden {{ $entry['isActive'] ? 'text-brand-800' : '' }}">
+                                                <span>{{ $entry['label'] }}</span>
+                                                <span class="flex items-center gap-2">
+                                                    @if ($entry['hasBadge'])
+                                                        <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950 group-open:hidden">0</span>
+                                                    @endif
+                                                    <svg class="size-4 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+                                                </span>
+                                            </summary>
+                                            <div class="ml-3 flex flex-col gap-1 border-l border-brand-100 pl-2">
+                                                @foreach ($entry['items'] as $item)
+                                                    <a class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-brand-50 {{ request()->routeIs($item['active']) ? 'bg-brand-50 text-brand-800' : '' }}" href="{{ route($item['route']) }}">{{ $item['label'] }}@if ($item['badge'] ?? false) <span data-menu-orders-badge hidden class="rounded-full bg-warm-500 px-2 py-0.5 text-xs font-black text-brand-950">0</span>@endif</a>
+                                                @endforeach
+                                            </div>
+                                        </details>
+                                    @else
+                                        <a class="rounded-lg px-3 py-2 hover:bg-brand-50 {{ $entry['isActive'] ? 'bg-brand-50 text-brand-800' : '' }}" href="{{ route($entry['route']) }}">{{ $entry['label'] }}</a>
                                     @endif
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('audit.index') }}">Auditoria</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('users.index') }}">Usuários</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('products.index') }}">Produtos e estoque</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('menu-settings.edit') }}">Cardápio digital</a>
-                                    <a class="rounded-lg px-3 py-2 hover:bg-brand-50" href="{{ route('settings.edit') }}">Configurações</a>
-                                @endif
+                                @endforeach
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit" class="w-full rounded-lg px-3 py-2 text-left text-red-700 hover:bg-red-50">Sair</button>
