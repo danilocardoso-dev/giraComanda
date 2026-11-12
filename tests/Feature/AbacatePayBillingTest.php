@@ -218,6 +218,24 @@ class AbacatePayBillingTest extends TestCase
         $this->assertTrue($subscription->refresh()->allowsAccess());
     }
 
+    public function test_checkout_completed_finds_the_checkout_by_external_id_when_bill_id_differs(): void
+    {
+        $this->settings();
+        [, $subscription, $invoice] = $this->customer();
+        $checkout = $this->card($subscription, $invoice, ['environment' => 'test', 'remote_id' => 'bill_stored_differently']);
+
+        $this->postJson(route('abacatepay.webhook', ['environment' => 'test']).'?webhookSecret=test-secret', [
+            'event' => 'checkout.completed', 'apiVersion' => 2, 'devMode' => true,
+            'data' => ['checkout' => [
+                'id' => 'bill_kYdhPcCddkeRAkbGmh5YmbhE', 'externalId' => $checkout->uuid, 'amount' => 29700, 'paidAmount' => 29700,
+                'status' => 'PAID', 'frequency' => 'SUBSCRIPTION', 'updatedAt' => '2026-11-11T16:16:28.457Z',
+            ]],
+        ])->assertOk();
+
+        $this->assertNotNull($invoice->refresh()->paid_at);
+        $this->assertTrue($subscription->refresh()->allowsAccess());
+    }
+
     public function test_checkout_completed_settles_the_first_subscription_payment_once(): void
     {
         $this->settings();

@@ -126,9 +126,9 @@ class SynchronizeAbacatePay
         if (data_get($data, 'checkout.frequency') !== 'SUBSCRIPTION' || data_get($data, 'checkout.status') !== 'PAID' || ! is_string($billId)) {
             return;
         }
-        $checkout = $this->findRecurrence($environment, null, $billId);
+        $checkout = $this->findRecurrence($environment, null, $billId, data_get($data, 'checkout.externalId'));
         if ($checkout === null) {
-            Log::warning('Evento AbacatePay sem checkout correspondente.', ['environment' => $environment, 'event' => 'checkout.completed', 'checkout_id' => $billId]);
+            Log::warning('Evento AbacatePay sem checkout correspondente.', ['environment' => $environment, 'event' => 'checkout.completed', 'checkout_id' => $billId, 'external_id' => data_get($data, 'checkout.externalId')]);
 
             return;
         }
@@ -146,7 +146,7 @@ class SynchronizeAbacatePay
     private function subscriptionPaymentEvent(string $environment, array $data, bool $first): void
     {
         $subscriptionId = data_get($data, 'subscription.id');
-        $checkout = $this->findRecurrence($environment, $subscriptionId, data_get($data, 'checkout.id'));
+        $checkout = $this->findRecurrence($environment, $subscriptionId, data_get($data, 'checkout.id'), data_get($data, 'checkout.externalId'));
         $paymentId = data_get($data, 'payment.id');
         if ($checkout === null || ! is_string($subscriptionId) || ! is_string($paymentId) || $paymentId === '') {
             Log::warning('Evento AbacatePay de assinatura não pôde ser aplicado.', ['environment' => $environment, 'subscription_id' => $subscriptionId, 'checkout_id' => data_get($data, 'checkout.id'), 'payment_id' => $paymentId, 'checkout_found' => $checkout !== null]);
@@ -178,7 +178,7 @@ class SynchronizeAbacatePay
         $checkout->update(['status' => 'cancelled', 'cancelled_at' => now()]);
     }
 
-    private function findRecurrence(string $environment, mixed $subscriptionId, mixed $checkoutId): ?SubscriptionCheckout
+    private function findRecurrence(string $environment, mixed $subscriptionId, mixed $checkoutId, mixed $externalId = null): ?SubscriptionCheckout
     {
         $query = SubscriptionCheckout::query()->where('environment', $environment)->where('kind', 'card');
 
@@ -188,8 +188,15 @@ class SynchronizeAbacatePay
                 return $found;
             }
         }
+        if (is_string($checkoutId) && $checkoutId !== '') {
+            $found = (clone $query)->where('remote_id', $checkoutId)->first();
+            if ($found !== null) {
+                return $found;
+            }
+        }
 
-        return is_string($checkoutId) && $checkoutId !== '' ? $query->where('remote_id', $checkoutId)->first() : null;
+        // The externalId we sent at creation is our checkout uuid, so it identifies the attempt even if the bill id was not stored.
+        return is_string($externalId) && $externalId !== '' ? $query->where('uuid', $externalId)->first() : null;
     }
 
     /** @param array<int|string, mixed> $data */
@@ -333,6 +340,7 @@ class SynchronizeAbacatePay
             return;
         }
         $payment->update(['review_reason' => $reason]);
+        Log::warning('Pagamento AbacatePay não aplicado, requer revisão.', ['payment_id' => $payment->remote_id, 'reason' => $reason, 'subscription_id' => $subscription->id]);
         PlatformActivityLog::query()->create(['company_id' => $subscription->company_id, 'action' => 'abacatepay_payment_review',
             'description' => 'Pagamento AbacatePay '.$payment->remote_id.' requer revisão: '.$reason.'.']);
     }
