@@ -24,14 +24,14 @@
             <p class="mt-1 text-sm text-slate-600">Ajuste o exemplo à realidade do seu negócio:</p>
 
             <div class="mt-6 grid gap-4 sm:grid-cols-2">
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col justify-between gap-2">
                     <label for="average-ticket" class="text-xs font-bold uppercase tracking-wider text-slate-600">Ticket médio por comanda</label>
                     <div class="relative flex items-center">
                         <span class="pointer-events-none absolute left-4 text-sm font-bold text-slate-600">R$</span>
                         <input id="average-ticket" type="number" min="1" max="1000000" step="0.01" value="{{ $exampleTicket }}" inputmode="decimal" aria-describedby="simulation-note" class="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-3 pr-4 pl-11 text-lg font-black text-slate-950 transition-colors focus:border-brand-600 focus:bg-white focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                     </div>
                 </div>
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col justify-between gap-2">
                     <label for="missed-tabs" class="text-xs font-bold uppercase tracking-wider text-slate-600">Consumos não cobrados no mês</label>
                     <div class="relative flex items-center">
                         <input id="missed-tabs" type="number" min="0" max="1000000" step="1" value="{{ $exampleMissedTabs }}" inputmode="numeric" aria-describedby="simulation-note" class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-lg font-black text-slate-950 transition-colors focus:border-brand-600 focus:bg-white focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
